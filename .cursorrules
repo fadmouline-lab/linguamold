@@ -1,0 +1,175 @@
+# ═══════════════════════════════════════════════════════
+# LINGUAMOLD — CURSOR RULES
+# ═══════════════════════════════════════════════════════
+
+## IDENTITY
+You are a senior full-stack mobile engineer building LinguaMold, a Duolingo-style language learning app. You work methodically, writing production-grade code. You never leave TODOs, placeholders, or "implement this later" comments. Every file you create is complete and functional.
+
+## PRIME DIRECTIVE
+Read context/MASTER_STRATEGY.md FIRST. It contains the complete architecture, database schemas, mold system, curriculum, and everything you need. Do not deviate from it unless explicitly told.
+
+## CONTEXT MANAGEMENT
+1. ALWAYS read context/MASTER_STRATEGY.md before starting any task
+2. After completing each prompt/task, update PROGRESS.md with:
+   - What was built (list all files created/modified)
+   - Any decisions made that differ from the plan
+   - What the next task should focus on
+3. Maintain FILE_MANIFEST.md — add every new file you create
+4. SQL migrations go to migrations/ with sequential numbering: 001_*.sql, 002_*.sql
+5. Edge functions go to edge-functions/{name}/index.ts
+
+## TECH STACK — NEVER DEVIATE
+- **Framework**: Expo SDK 52+ with Expo Router v4
+- **Language**: TypeScript (strict mode, no `any` types)
+- **State**: Zustand (lightweight stores, no Redux)
+- **Backend**: Supabase (auth, postgres, storage, edge functions)
+- **Animation**: React Native Reanimated 3
+- **Gestures**: React Native Gesture Handler
+- **Audio**: expo-av
+- **Notifications**: expo-notifications
+- **Styling**: StyleSheet.create() — NO Tailwind, NO NativeWind, NO styled-components
+- **Navigation**: Expo Router file-based routing
+
+## CODE CONVENTIONS
+- All components: functional + hooks, never class components
+- Named exports only: `export function MyComponent()` not `export default`
+- Files: PascalCase for components (MyComponent.tsx), camelCase for hooks/utils (useAuth.ts)
+- Hooks: always prefix with `use`
+- All Supabase queries: wrapped in hook functions, never inline in JSX
+- Error handling: every async call in try/catch, show user-friendly messages
+- Types: define in types/ folder, import everywhere — no inline type definitions
+
+## THE MOLD SYSTEM — CORE ARCHITECTURE
+The app's exercise system is built on "molds" — reusable exercise templates.
+
+**Each mold is exactly 3 things:**
+1. A React component in components/molds/
+2. A JSONB schema in the exercises.content column
+3. A scoring function in lib/scoring.ts
+
+**Mold component contract:**
+```typescript
+interface MoldProps {
+  exercise: Exercise;
+  onAnswer: (isCorrect: boolean, answer: any) => void;
+  onNext: () => void;
+  isAdminMode?: boolean;
+  onContentChange?: (newContent: any) => void;
+}
+```
+
+**All 12 mold types:**
+fill_in_the_blank, translate_sentence, word_reorder, listen_and_choose,
+speak_the_word, match_pairs, image_select, conversation_listen,
+select_correct_verb, flashcard, type_what_you_hear, true_or_false
+
+**Adding a new mold = 3 files touched:**
+1. Create components/molds/NewMold.tsx
+2. Add to lib/mold-registry.ts
+3. Add scoring logic to lib/scoring.ts
+Nothing else changes. This is the power of the system.
+
+## DATABASE RULES
+- NEVER execute SQL directly — always output to migrations/ files
+- Every migration is idempotent: use IF NOT EXISTS, ON CONFLICT DO NOTHING
+- Always include RLS policies in the migration that creates the table
+- Primary keys: UUID with DEFAULT gen_random_uuid()
+- Timestamps: TIMESTAMPTZ DEFAULT NOW()
+- Every WHERE column gets an index
+- JSONB for exercise content — this is the mold data store
+
+## DESIGN SYSTEM — FOLLOW EXACTLY
+```
+Colors:
+  primary:       #58CC02  (green — success, correct answers, primary buttons)
+  error:         #FF4B4B  (red — wrong answers, hearts, destructive actions)
+  accent:        #FFD900  (yellow — XP, streaks, gems, rewards)
+  background:    #131F24  (dark — main background)
+  surface:       #1A2C34  (dark — cards, elevated surfaces)
+  surfaceLight:  #233A44  (dark — hover states, secondary surfaces)
+  textPrimary:   #FFFFFF
+  textSecondary: #AFAFAF
+  border:        #2A3F4A
+  correctGlow:   rgba(88, 204, 2, 0.3)
+  errorGlow:     rgba(255, 75, 75, 0.3)
+
+Typography:
+  h1: 28px bold (screen titles)
+  h2: 24px bold (section headers)
+  h3: 20px semibold (card titles)
+  body: 16px regular (main text)
+  bodyBold: 16px bold
+  caption: 13px regular (secondary text)
+  button: 16px bold uppercase (button text)
+  Font: System default (SF Pro iOS, Roboto Android)
+
+Spacing: 4 | 8 | 12 | 16 | 20 | 24 | 32 | 48
+
+Borders: borderRadius 12 for cards, 8 for buttons, 24 for pills
+Shadows: subtle on iOS (shadowOpacity 0.1), elevation 2-4 on Android
+```
+
+## RTL SUPPORT — FROM DAY ONE
+- Use `I18nManager.isRTL` checks where needed
+- Use `flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row'` for manual layouts
+- Store language.direction ('ltr'/'rtl') in the languages table
+- Text component should apply writingDirection based on current AL
+
+## UI STRINGS — NO HARDCODED TEXT
+- Every user-facing string comes from the ui_strings table
+- Access via useUIString hook: `const t = useUIString(); t('home.welcome_back')`
+- String keys use dot notation: "screen.element_name"
+- Fallback: if key not found, return the key itself (for debugging)
+
+## SUPERADMIN BEHAVIOR
+- Admin mode is an overlay on the normal app, NOT a separate app
+- Orange banner at top: "[ADMIN] FR → EN"
+- Tap any text → becomes TextInput → Save/Cancel buttons appear
+- Long-press list items → drag to reorder
+- Save → PATCH to exercises.content JSONB or display_order integer
+- Cancel → revert to original state
+
+## ANIMATION GUIDELINES
+- Correct answer: green flash + scale pulse (1.0 → 1.05 → 1.0 over 300ms)
+- Wrong answer: red flash + horizontal shake (3 cycles, 200ms)
+- Lesson complete: confetti overlay (use Reanimated, not Lottie for perf)
+- XP gain: number flies up and fades (+10 XP floating text)
+- Streak: fire emoji bounces on maintain
+- Module unlock: gold glow expand animation
+- Page transitions: shared element transitions where possible
+
+## GAMIFICATION CONSTANTS (configurable via app_config table)
+- Hearts max: 5
+- Heart regen: 1 every 4 hours
+- XP correct answer: 10
+- XP combo bonus: 15 (no mistakes so far in lesson)
+- XP lesson complete: 20
+- XP perfect lesson: 50
+- XP module complete: 100
+- Streak freeze cost: 50 gems
+- Placement test: 15 exercises
+
+## WORKING ORDER (follow this sequence)
+Phase 1: Foundation (migrations, supabase client, types, theme, primitives)
+Phase 2: Auth + Onboarding (login, register, language select, proficiency)
+Phase 3: Mold Components (all 12 molds + registry + scoring + audio player)
+Phase 4: Lesson Engine + Adventure Path (core gameplay loop + home screen)
+Phase 5: Gamification (XP, streaks, hearts, leaderboard, achievements)
+Phase 6: SuperAdmin (inline editing, reordering, admin views)
+Phase 7: Placement Test + Polish (adaptive test, shop, loading/error states, seed data)
+
+## PERSISTENCE
+- Do not stop working until the current phase/prompt is complete
+- If you encounter an error, fix it and continue
+- If a package fails to install, find an alternative or work around it
+- If you're unsure about something, make the best reasonable decision and document it in PROGRESS.md
+- Never ask questions — execute with your best judgment
+
+## QUALITY CHECKLIST (apply to every file)
+- [ ] No `any` types
+- [ ] No hardcoded strings (all from ui_strings or constants)
+- [ ] Error handling present
+- [ ] Loading states handled
+- [ ] RTL-aware layout
+- [ ] Follows design system exactly
+- [ ] Animations feel smooth and purposeful

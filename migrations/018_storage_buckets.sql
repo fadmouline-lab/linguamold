@@ -1,0 +1,21 @@
+-- LinguaMold: Storage buckets — create manually in Supabase Dashboard
+--
+-- Bucket: audio
+--   Public: optional (prefer signed URLs for production)
+--   Allowed MIME: audio/mpeg, audio/wav
+--   File path convention: {language_code}/{slug}.mp3
+--
+-- Bucket: images
+--   Public: optional
+--   Allowed MIME: image/png, image/jpeg, image/webp
+--   File path convention: exercises/{id}.png
+--
+-- RLS policies for storage.objects should allow:
+--   - Authenticated read on public objects or signed URLs
+--   - Superadmin upload/update/delete
+--
+-- SQL for buckets (run in Dashboard or via storage API):
+--   insert into storage.buckets (id, name, public) values ('audio', 'audio', true);
+--   insert into storage.buckets (id, name, public) values ('images', 'images', true);
+
+SELECT 1; -- no-op migration marker

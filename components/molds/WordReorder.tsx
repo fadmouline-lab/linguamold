@@ -1,0 +1,135 @@
+import { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+
+import { AudioPlayer } from '@/components/common/AudioPlayer';
+import { ErrorMessage } from '@/components/common/ErrorMessage';
+import { ExerciseHeader } from '@/components/common/ExerciseHeader';
+import { SuccessMessage } from '@/components/common/SuccessMessage';
+import { EditableField } from '@/components/molds/EditableField';
+import { Button } from '@/components/ui/Button';
+import { Text } from '@/components/ui/Text';
+import { colors, radii, spacing } from '@/components/ui/theme';
+import { useUIString } from '@/hooks/useUIString';
+import { scoreWordReorder } from '@/lib/scoring';
+import type { MoldProps, WordReorderContent } from '@/types/molds';
+
+export function WordReorder({
+  exercise,
+  onAnswer,
+  onNext,
+  isAdminMode,
+  onContentChange,
+}: MoldProps) {
+  const { t } = useUIString();
+  const base = exercise.content as unknown as WordReorderContent;
+  const [content, setContent] = useState(base);
+  const [pool, setPool] = useState<number[]>(() =>
+    content.scrambled_words_ll.map((_, i) => i)
+  );
+  const [slots, setSlots] = useState<number[]>([]);
+  const [phase, setPhase] = useState<'idle' | 'result'>('idle');
+  const [correct, setCorrect] = useState(false);
+
+  const words = content.scrambled_words_ll;
+
+  const orderIdx = useMemo(() => slots, [slots]);
+
+  const patch = (next: Partial<WordReorderContent>) => {
+    const merged = { ...content, ...next };
+    setContent(merged);
+    onContentChange?.(merged as Record<string, unknown>);
+  };
+
+  const check = () => {
+    const ok = scoreWordReorder(content, orderIdx);
+    setCorrect(ok);
+    setPhase('result');
+    onAnswer(ok, orderIdx);
+  };
+
+  const tapPool = (pos: number) => {
+    if (phase !== 'idle') return;
+    setPool((p) => {
+      const next = [...p];
+      const [taken] = next.splice(pos, 1);
+      setSlots((s) => [...s, taken]);
+      return next;
+    });
+  };
+
+  const tapSlot = (pos: number) => {
+    if (phase !== 'idle') return;
+    setSlots((s) => {
+      const next = [...s];
+      const [taken] = next.splice(pos, 1);
+      setPool((p) => [...p, taken]);
+      return next;
+    });
+  };
+
+  return (
+    <View style={styles.wrap}>
+      <ExerciseHeader moldLabel="Word order" />
+      <EditableField
+        isAdminMode={isAdminMode}
+        value={content.prompt_al}
+        multiline
+        onCommit={(v) => patch({ prompt_al: v })}
+      />
+      <AudioPlayer audioUrl={content.audio_url_ll ?? null} />
+      <View style={styles.slots}>
+        {slots.map((idx, pos) => (
+          <Pressable key={`s-${idx}-${pos}`} onPress={() => tapSlot(pos)} style={styles.chip}>
+            <Text variant="bodyBold">{words[idx]}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <View style={styles.pool}>
+        {pool.map((idx, pos) => (
+          <Pressable key={`p-${idx}-${pos}`} onPress={() => tapPool(pos)} style={styles.chip}>
+            <Text variant="body">{words[idx]}</Text>
+          </Pressable>
+        ))}
+      </View>
+      {phase === 'idle' ? (
+        <Button title={t('exercise.check')} onPress={() => void check()} />
+      ) : null}
+      <SuccessMessage visible={phase === 'result' && correct} message={t('lesson.correct')} />
+      <ErrorMessage visible={phase === 'result' && !correct} message={t('lesson.wrong')} />
+      {phase === 'result' ? (
+        <Button
+          title={t('common.continue')}
+          onPress={() => {
+            setPhase('idle');
+            setSlots([]);
+            setPool(content.scrambled_words_ll.map((_, i) => i));
+            onNext();
+          }}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  wrap: { gap: spacing.md },
+  slots: {
+    minHeight: 56,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    padding: spacing.sm,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  pool: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surfaceLight,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+});
