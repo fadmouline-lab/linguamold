@@ -11,7 +11,7 @@ export interface HeartDisplayProps {
 
 export function HeartDisplay({ hearts, max = 5 }: HeartDisplayProps) {
   return (
-    <View style={styles.row}>
+    <View style={styles.row} accessibilityLabel={`${hearts} vies sur ${max}`} accessibilityRole="text">
       {Array.from({ length: max }).map((_, i) => (
         <Ionicons
           key={i}

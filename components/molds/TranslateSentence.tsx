@@ -9,9 +9,9 @@ import { EditableField } from '@/components/molds/EditableField';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
-import { spacing } from '@/components/ui/theme';
+import { colors, spacing } from '@/components/ui/theme';
 import { useUIString } from '@/hooks/useUIString';
-import { scoreTranslateSentence } from '@/lib/scoring';
+import { scoreTranslateSentenceFuzzy } from '@/lib/scoring';
 import type { MoldProps, TranslateSentenceContent } from '@/types/molds';
 
 export function TranslateSentence({
@@ -28,12 +28,18 @@ export function TranslateSentence({
   const [showHint, setShowHint] = useState(false);
   const [phase, setPhase] = useState<'idle' | 'result'>('idle');
   const [correct, setCorrect] = useState(false);
+  const [close, setClose] = useState(false);
+  const [bestMatch, setBestMatch] = useState<string | null>(null);
 
   const check = () => {
-    const ok = scoreTranslateSentence(content, text);
-    setCorrect(ok);
+    const trimmed = text.trim();
+    setText(trimmed);
+    const result = scoreTranslateSentenceFuzzy(content, trimmed);
+    setCorrect(result.correct);
+    setClose(result.close);
+    setBestMatch(result.bestMatch);
     setPhase('result');
-    onAnswer(ok, text);
+    onAnswer(result.correct, trimmed);
   };
 
   const patch = (next: Partial<TranslateSentenceContent>) => {
@@ -44,7 +50,7 @@ export function TranslateSentence({
 
   return (
     <View style={styles.wrap}>
-      <ExerciseHeader moldLabel="Translate" />
+      <ExerciseHeader moldLabel={t('mold.translate_label')} />
       <EditableField
         isAdminMode={isAdminMode}
         value={content.prompt_al}
@@ -56,7 +62,7 @@ export function TranslateSentence({
         value={text}
         onChangeText={setText}
         editable={phase === 'idle'}
-        placeholder="English"
+        placeholder={t('mold.translate_input_placeholder')}
       />
       {showHint && content.hint_al ? (
         <Text variant="caption">{content.hint_al}</Text>
@@ -75,6 +81,18 @@ export function TranslateSentence({
         visible={phase === 'result' && correct}
         message={t('lesson.correct')}
       />
+      {phase === 'result' && !correct && close ? (
+        <View style={styles.almost}>
+          <Text variant="bodyBold" style={{ color: colors.accent }}>
+            {t('lesson.almost')}
+          </Text>
+          {bestMatch ? (
+            <Text variant="caption" style={{ color: colors.textSecondary }}>
+              {bestMatch}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
       <ErrorMessage
         visible={phase === 'result' && !correct}
         message={t('lesson.wrong')}
@@ -82,9 +100,12 @@ export function TranslateSentence({
       {phase === 'result' ? (
         <Button
           title={t('common.continue')}
+          variant={correct ? 'correct' : 'wrong'}
           onPress={() => {
             setPhase('idle');
             setText('');
+            setClose(false);
+            setBestMatch(null);
             onNext();
           }}
         />
@@ -94,6 +115,7 @@ export function TranslateSentence({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.md },
+  wrap: { gap: spacing.lg },
   row: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
+  almost: { alignItems: 'center', gap: spacing.xs },
 });

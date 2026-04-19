@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { AudioPlayer } from '@/components/common/AudioPlayer';
 import { ExerciseHeader } from '@/components/common/ExerciseHeader';
@@ -24,6 +29,21 @@ export function Flashcard({
   const [content, setContent] = useState(base);
   const [showBack, setShowBack] = useState(false);
 
+  // 3D flip: rotate to 90° (edge), swap content, rotate back to 0°
+  const rotation = useSharedValue(0);
+
+  const flip = () => {
+    rotation.value = withSequence(
+      withTiming(90, { duration: 150 }),
+      withTiming(0, { duration: 150 })
+    );
+    setTimeout(() => setShowBack((s) => !s), 150);
+  };
+
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [{ rotateY: `${rotation.value}deg` }],
+  }));
+
   const patch = (next: Partial<FlashcardContent>) => {
     const merged = { ...content, ...next };
     setContent(merged);
@@ -37,45 +57,47 @@ export function Flashcard({
 
   return (
     <View style={styles.wrap}>
-      <ExerciseHeader moldLabel="Flashcard" />
-      <Pressable onPress={() => setShowBack((s) => !s)} style={styles.cardArea}>
-        {showBack ? (
-          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.inner}>
-            <EditableField
-              isAdminMode={isAdminMode}
-              value={content.translation_al}
-              onCommit={(v) => patch({ translation_al: v })}
-            />
-            <EditableField
-              isAdminMode={isAdminMode}
-              value={content.example_ll}
-              multiline
-              onCommit={(v) => patch({ example_ll: v })}
-            />
-            <EditableField
-              isAdminMode={isAdminMode}
-              value={content.example_al}
-              multiline
-              onCommit={(v) => patch({ example_al: v })}
-            />
-            <AudioPlayer audioUrl={content.audio_url_ll ?? null} />
-          </Animated.View>
-        ) : (
-          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.inner}>
-            <EditableField
-              isAdminMode={isAdminMode}
-              value={content.word_ll}
-              onCommit={(v) => patch({ word_ll: v })}
-            />
-            {content.pronunciation_ll ? (
-              <Text variant="caption">{content.pronunciation_ll}</Text>
-            ) : null}
-            <Text variant="caption">{t('lesson.progress')}</Text>
-          </Animated.View>
-        )}
+      <ExerciseHeader moldLabel={t('mold.flashcard_label')} />
+      <Pressable onPress={flip}>
+        <Animated.View style={[styles.cardArea, cardStyle]}>
+          {showBack ? (
+            <View style={styles.inner}>
+              <EditableField
+                isAdminMode={isAdminMode}
+                value={content.translation_al}
+                onCommit={(v) => patch({ translation_al: v })}
+              />
+              <EditableField
+                isAdminMode={isAdminMode}
+                value={content.example_ll}
+                multiline
+                onCommit={(v) => patch({ example_ll: v })}
+              />
+              <EditableField
+                isAdminMode={isAdminMode}
+                value={content.example_al}
+                multiline
+                onCommit={(v) => patch({ example_al: v })}
+              />
+              <AudioPlayer audioUrl={content.audio_url_ll ?? null} />
+            </View>
+          ) : (
+            <View style={styles.inner}>
+              <EditableField
+                isAdminMode={isAdminMode}
+                value={content.word_ll}
+                onCommit={(v) => patch({ word_ll: v })}
+              />
+              {content.pronunciation_ll ? (
+                <Text variant="caption">{content.pronunciation_ll}</Text>
+              ) : null}
+              <Text variant="caption" style={styles.tapHint}>{t('lesson.progress')}</Text>
+            </View>
+          )}
+        </Animated.View>
       </Pressable>
       <View style={styles.row}>
-        <Button title={t('exercise.self_correct')} onPress={() => finish()} />
+        <Button title={t('exercise.self_correct')} variant="correct" onPress={() => finish()} />
         <Button
           title={t('exercise.self_practice')}
           variant="secondary"
@@ -87,7 +109,7 @@ export function Flashcard({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.md },
+  wrap: { gap: spacing.lg },
   cardArea: {
     minHeight: 220,
     borderRadius: radii.md,
@@ -97,5 +119,6 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   inner: { gap: spacing.sm },
+  tapHint: { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.md },
   row: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
 });

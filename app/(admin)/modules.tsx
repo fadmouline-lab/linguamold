@@ -3,21 +3,25 @@ import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Switch } from 'react-native';
 
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { ReorderableList } from '@/components/admin/ReorderableList';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
 import { colors, spacing } from '@/components/ui/theme';
 import { useAdminMode } from '@/hooks/useAdminMode';
 import { useLanguagePair } from '@/hooks/useLanguagePair';
+import { useUIString } from '@/hooks/useUIString';
 import { supabase } from '@/lib/supabase';
 import { useAdminStore } from '@/stores/adminStore';
 import type { Module } from '@/types/index';
 
 export default function AdminModulesScreen() {
+  const { t } = useUIString();
   const { currentAL, currentLL } = useLanguagePair();
   const { reorderItems } = useAdminMode();
   const selectedAL = useAdminStore((s) => s.selectedAL);
   const [modules, setModules] = useState<Module[]>([]);
+  const [unpublishTarget, setUnpublishTarget] = useState<Module | null>(null);
 
   const load = useCallback(async () => {
     const al = selectedAL ?? currentAL;
@@ -64,7 +68,7 @@ export default function AdminModulesScreen() {
 
   return (
     <ScreenContainer>
-      <Text variant="h1">Modules</Text>
+      <Text variant="h1">{t('admin.modules_title')}</Text>
       <ReorderableList
         adminMode
         items={modules}
@@ -80,10 +84,29 @@ export default function AdminModulesScreen() {
             </Pressable>
             <Switch
               value={m.is_published}
-              onValueChange={(v) => void togglePublished(m, v)}
+              onValueChange={(v) => {
+                if (!v) {
+                  setUnpublishTarget(m);
+                } else {
+                  void togglePublished(m, v);
+                }
+              }}
             />
           </View>
         )}
+      />
+      <ConfirmDialog
+        visible={Boolean(unpublishTarget)}
+        title={t('confirm.unpublish_title')}
+        message={t('confirm.unpublish_message')}
+        confirmLabel={t('confirm.exit_quit')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        onConfirm={() => {
+          if (unpublishTarget) void togglePublished(unpublishTarget, false);
+          setUnpublishTarget(null);
+        }}
+        onCancel={() => setUnpublishTarget(null)}
       />
     </ScreenContainer>
   );

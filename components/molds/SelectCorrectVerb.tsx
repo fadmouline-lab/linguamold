@@ -81,6 +81,7 @@ export function SelectCorrectVerb({
       {phase === 'result' ? (
         <Button
           title={t('common.continue')}
+          variant={correct ? 'correct' : 'wrong'}
           onPress={() => {
             setPhase('idle');
             setSelected(null);
@@ -92,4 +93,4 @@ export function SelectCorrectVerb({
   );
 }
 
-const styles = StyleSheet.create({ wrap: { gap: spacing.sm } });
+const styles = StyleSheet.create({ wrap: { gap: spacing.lg } });

@@ -47,7 +47,11 @@ export default function LoginScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-          <Text variant="h1" style={styles.title}>
+          <View style={styles.hero}>
+            <Text style={styles.logoEmoji}>🦋</Text>
+            <Text variant="h1" style={styles.appName}>LinguaMold</Text>
+          </View>
+          <Text variant="h2" style={styles.title}>
             {t('auth.login_title')}
           </Text>
           <Input
@@ -103,7 +107,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxxl,
     gap: spacing.md,
   },
-  title: { marginBottom: spacing.lg },
+  hero: { alignItems: 'center', marginBottom: spacing.xl },
+  logoEmoji: { fontSize: 64, lineHeight: 80 },
+  appName: { fontSize: 32, fontWeight: '800', color: colors.primary, marginTop: spacing.sm },
+  title: { marginBottom: spacing.lg, textAlign: 'center' },
   gap: { height: spacing.sm },
   spacer: { height: spacing.lg },
   error: { color: colors.error, marginTop: spacing.sm },

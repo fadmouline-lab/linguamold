@@ -40,3 +40,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+.gstack/
+
+# generated audio
+content-generation/audio-samples/
+content-generation/audio-output/
+content-generation/.polly-usage.json

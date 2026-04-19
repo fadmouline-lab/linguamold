@@ -1,7 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
+import { SkeletonLoader } from '@/components/common/SkeletonLoader';
+
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
@@ -14,13 +18,18 @@ import { supabase } from '@/lib/supabase';
 export default function SelectLanguageScreen() {
   const { t } = useUIString();
   const { user } = useAuth();
-  const { currentAL, availableLLs, setAL, setLL, persistPairToProfile, reload } =
+  const { currentAL, availableLLs, setLL, persistPairToProfile, reload } =
     useLanguagePair();
 
-  const pickLanguage = useCallback(
-    async (llId: string) => {
-      const target = availableLLs.find((l) => l.id === llId);
-      if (!target || !currentAL) return;
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const confirmSelection = useCallback(async () => {
+    if (!selectedId || !currentAL) return;
+    const target = availableLLs.find((l) => l.id === selectedId);
+    if (!target) return;
+    setSaving(true);
+    try {
       await setLL(target);
       await persistPairToProfile(currentAL.id, target.id);
       if (user?.id) {
@@ -35,12 +44,21 @@ export default function SelectLanguageScreen() {
       }
       await reload();
       router.replace('/(onboarding)/proficiency');
-    },
-    [availableLLs, currentAL, persistPairToProfile, reload, setLL, user?.id]
-  );
+    } finally {
+      setSaving(false);
+    }
+  }, [selectedId, currentAL, availableLLs, setLL, persistPairToProfile, user?.id, reload]);
 
   return (
     <ScreenContainer>
+      <Pressable
+        onPress={() => router.back()}
+        accessibilityRole="button"
+        accessibilityLabel="Retour"
+        style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm }}
+      >
+        <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+      </Pressable>
       <Text variant="h1" style={styles.title}>
         {t('onboarding.select_ll_title')}
       </Text>
@@ -52,21 +70,38 @@ export default function SelectLanguageScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
-          <Text variant="body">{t('common.loading')}</Text>
+          <View style={{ gap: spacing.md }}>
+            <SkeletonLoader height={72} />
+            <SkeletonLoader height={72} />
+            <SkeletonLoader height={72} />
+          </View>
         }
-        renderItem={({ item }) => (
-          <Pressable onPress={() => void pickLanguage(item.id)}>
-            <Card style={styles.card}>
-              <View style={styles.row}>
-                <Text variant="h2">{item.flag_emoji ?? '🌐'}</Text>
-                <View style={styles.meta}>
-                  <Text variant="h3">{item.name_native}</Text>
-                  <Text variant="caption">{item.name_english}</Text>
+        renderItem={({ item }) => {
+          const isSelected = selectedId === item.id;
+          return (
+            <Pressable onPress={() => setSelectedId(item.id)}>
+              <Card style={[styles.card, isSelected ? styles.cardSelected : null]}>
+                <View style={styles.row}>
+                  <Text variant="h2">{item.flag_emoji ?? '🌐'}</Text>
+                  <View style={styles.meta}>
+                    <Text variant="h3">{item.name_native}</Text>
+                    <Text variant="caption">{item.name_english}</Text>
+                  </View>
+                  {isSelected ? (
+                    <Text style={styles.check}>✓</Text>
+                  ) : null}
                 </View>
-              </View>
-            </Card>
-          </Pressable>
-        )}
+              </Card>
+            </Pressable>
+          );
+        }}
+      />
+      <Button
+        title={t('common.continue')}
+        onPress={() => void confirmSelection()}
+        loading={saving}
+        disabled={!selectedId}
+        style={selectedId ? undefined : styles.btnDisabled}
       />
     </ScreenContainer>
   );
@@ -77,6 +112,12 @@ const styles = StyleSheet.create({
   sub: { marginBottom: spacing.lg, color: colors.textSecondary },
   list: { gap: spacing.md, paddingBottom: spacing.huge },
   card: { marginBottom: spacing.sm },
+  cardSelected: {
+    borderColor: colors.primary,
+    borderWidth: 2,
+  },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   meta: { flex: 1 },
+  check: { color: colors.primary, fontSize: 20, fontWeight: '700' },
+  btnDisabled: { opacity: 0.4 },
 });

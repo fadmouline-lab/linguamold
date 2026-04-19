@@ -74,6 +74,7 @@ const styles = StyleSheet.create({
   text: { flexShrink: 1 },
   tap: {
     borderWidth: 1,
+    borderStyle: 'dashed',
     borderColor: colors.adminBar,
     borderRadius: radii.sm,
     padding: spacing.sm,

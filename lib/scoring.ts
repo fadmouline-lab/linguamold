@@ -1,10 +1,13 @@
 import type { MoldType } from '@/types/molds';
+import { isCloseMatch } from '@/lib/fuzzy-match';
 
-function norm(s: string): string {
+export function norm(s: string): string {
   return s
     .trim()
     .toLowerCase()
-    .replace(/[.,!?;:]+$/g, '')
+    .replace(/[\u2018\u2019\u201C\u201D]/g, "'")
+    .replace(/'\s+/g, "'")
+    .replace(/[.,!?;:¿¡"]+/g, '')
     .replace(/\s+/g, ' ');
 }
 
@@ -85,6 +88,26 @@ export function scoreTypeWhatYouHear(
 ): boolean {
   const u = norm(userText);
   return content.accepted_answers.some((a) => norm(a) === u);
+}
+
+export function scoreTranslateSentenceFuzzy(
+  content: { accepted_answers_ll: string[] },
+  userText: string
+): { correct: boolean; close: boolean; bestMatch: string | null } {
+  const correct = scoreTranslateSentence(content, userText);
+  if (correct) return { correct: true, close: false, bestMatch: null };
+  const { close, bestMatch } = isCloseMatch(userText, content.accepted_answers_ll);
+  return { correct: false, close, bestMatch };
+}
+
+export function scoreTypeWhatYouHearFuzzy(
+  content: { accepted_answers: string[] },
+  userText: string
+): { correct: boolean; close: boolean; bestMatch: string | null } {
+  const correct = scoreTypeWhatYouHear(content, userText);
+  if (correct) return { correct: true, close: false, bestMatch: null };
+  const { close, bestMatch } = isCloseMatch(userText, content.accepted_answers);
+  return { correct: false, close, bestMatch };
 }
 
 export function scoreTrueOrFalse(

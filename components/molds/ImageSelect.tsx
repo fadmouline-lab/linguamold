@@ -75,6 +75,7 @@ export function ImageSelect({
       {phase === 'result' ? (
         <Button
           title={t('common.continue')}
+          variant={correct ? 'correct' : 'wrong'}
           onPress={() => {
             setPhase('idle');
             setPicked(null);
@@ -87,7 +88,7 @@ export function ImageSelect({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.md },
+  wrap: { gap: spacing.lg },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

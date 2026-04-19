@@ -24,13 +24,19 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
 
   const onSubmit = async () => {
     setError('');
     setLoading(true);
     try {
-      await signUp(email, password, displayName);
-      router.replace('/');
+      const data = await signUp(email, password, displayName);
+      if (data.session) {
+        router.replace('/');
+      } else {
+        // Email confirmation required — session is null until user confirms
+        setAwaitingConfirmation(true);
+      }
     } catch {
       setError(t('auth.error_generic'));
     } finally {
@@ -79,11 +85,17 @@ export default function RegisterScreen() {
               {error}
             </Text>
           ) : null}
+          {awaitingConfirmation ? (
+            <Text variant="caption" style={styles.confirm}>
+              {t('auth.confirm_email')}
+            </Text>
+          ) : null}
           <View style={styles.spacer} />
           <Button
             title={t('auth.sign_up')}
             onPress={() => void onSubmit()}
             loading={loading}
+            disabled={awaitingConfirmation}
           />
           <View style={styles.row}>
             <Text variant="caption">{t('auth.have_account')} </Text>
@@ -110,6 +122,7 @@ const styles = StyleSheet.create({
   gap: { height: spacing.sm },
   spacer: { height: spacing.lg },
   error: { color: colors.error, marginTop: spacing.sm },
+  confirm: { color: colors.primary, marginTop: spacing.sm, textAlign: 'center' },
   row: {
     flexDirection: 'row',
     justifyContent: 'center',

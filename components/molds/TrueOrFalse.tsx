@@ -77,6 +77,6 @@ export function TrueOrFalse({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.md },
+  wrap: { gap: spacing.lg },
   row: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
 });

@@ -9,7 +9,7 @@ import { SuccessMessage } from '@/components/common/SuccessMessage';
 import { EditableField } from '@/components/molds/EditableField';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
-import { colors, spacing } from '@/components/ui/theme';
+import { colors, radii, spacing } from '@/components/ui/theme';
 import { useUIString } from '@/hooks/useUIString';
 import { scoreFillInTheBlank } from '@/lib/scoring';
 import type { FillInTheBlankContent, MoldProps } from '@/types/molds';
@@ -61,7 +61,7 @@ export function FillInTheBlank({
 
   return (
     <View style={styles.wrap}>
-      <ExerciseHeader moldLabel="Fill in the blank" />
+      <ExerciseHeader moldLabel={t('mold.fill_blank_label')} />
       <View style={styles.sentenceRow}>
         {isAdminMode ? (
           <EditableField
@@ -73,8 +73,10 @@ export function FillInTheBlank({
         ) : (
           <>
             <Text variant="h3">{sentence.before}</Text>
-            <View style={styles.blank}>
-              <Text variant="h3">___</Text>
+            <View style={[styles.blank, selected !== null ? styles.blankFilled : null]}>
+              <Text variant="h3" style={styles.blankText}>
+                {selected !== null ? (content.options[selected]?.text ?? '___') : '___'}
+              </Text>
             </View>
             <Text variant="h3">{sentence.after}</Text>
           </>
@@ -101,6 +103,7 @@ export function FillInTheBlank({
       {phase === 'result' ? (
         <Button
           title={t('common.continue')}
+          variant={correct ? 'correct' : 'wrong'}
           onPress={() => {
             setPhase('idle');
             setSelected(null);
@@ -113,11 +116,20 @@ export function FillInTheBlank({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.sm },
+  wrap: { gap: spacing.lg },
   sentenceRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.xs },
   blank: {
-    paddingHorizontal: spacing.sm,
-    borderBottomWidth: 2,
-    borderColor: colors.accent,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.sm,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: colors.surfaceLight,
+    minWidth: 64,
+    alignItems: 'center',
   },
+  blankFilled: {
+    backgroundColor: colors.correctGlow,
+  },
+  blankText: { color: colors.primary },
 });

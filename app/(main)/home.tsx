@@ -1,5 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -10,13 +11,17 @@ import {
 
 import { AdminToggleBar } from '@/components/admin/AdminToggleBar';
 import { AdventurePath } from '@/components/adventure/AdventurePath';
+import { ErrorState } from '@/components/common/ErrorState';
+import { FirstTimeTooltip } from '@/components/common/FirstTimeTooltip';
+import { SkeletonLoader } from '@/components/common/SkeletonLoader';
 import { StreakBadge } from '@/components/gamification/StreakBadge';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
-import { colors, spacing } from '@/components/ui/theme';
+import { colors, radii, spacing } from '@/components/ui/theme';
 import { useAdminMode } from '@/hooks/useAdminMode';
 import { useLessons } from '@/hooks/useLessons';
 import { useModules } from '@/hooks/useModules';
+import { useStreak } from '@/hooks/useStreak';
 import { useUIString } from '@/hooks/useUIString';
 import { useGamificationStore } from '@/stores/gamificationStore';
 import { useAdminStore } from '@/stores/adminStore';
@@ -26,7 +31,7 @@ import { supabase } from '@/lib/supabase';
 
 export default function HomeScreen() {
   const { t } = useUIString();
-  const { modules, loading } = useModules();
+  const { modules, loading, error, reload } = useModules();
   const [selected, setSelected] = useState<ModuleWithProgress | null>(null);
   const { lessons, loading: lessonsLoading } = useLessons(selected?.id ?? null);
   const gems = useGamificationStore((s) => s.gems);
@@ -34,6 +39,9 @@ export default function HomeScreen() {
   const isAdminMode = useAdminStore((s) => s.isAdminMode);
   const { checkIsAdmin } = useAdminMode();
   const userId = useAuthStore((s) => s.user?.id);
+  const { checkStreak } = useStreak();
+  const pushToast = useGamificationStore((s) => s.pushToast);
+  const streakBeforeCheck = useRef<number | null>(null);
 
   useEffect(() => {
     const run = async () => {
@@ -58,6 +66,29 @@ export default function HomeScreen() {
     void run();
   }, [setFromProfile, userId]);
 
+  useEffect(() => {
+    const run = async () => {
+      if (!userId) return;
+      const today = new Date().toISOString().slice(0, 10);
+      const key = `linguamold.streak_checked_${today}`;
+      const already = await AsyncStorage.getItem(key);
+      if (already === '1') return;
+
+      streakBeforeCheck.current = useGamificationStore.getState().currentStreak;
+      await checkStreak();
+      const after = useGamificationStore.getState().currentStreak;
+
+      if (streakBeforeCheck.current > 0 && after === 0) {
+        pushToast(t('gamify.streak_lost'), '😢');
+      } else if (after > 0) {
+        pushToast(t('gamify.streak_celebration'), '🔥');
+      }
+
+      await AsyncStorage.setItem(key, '1');
+    };
+    void run();
+  }, [userId, checkStreak, pushToast, t]);
+
   const openModule = useCallback((m: ModuleWithProgress) => {
     setSelected(m);
   }, []);
@@ -67,49 +98,73 @@ export default function HomeScreen() {
       {isAdminMode && checkIsAdmin() ? <AdminToggleBar /> : null}
       <View style={styles.header}>
         <StreakBadge />
-        <Text variant="h2" style={styles.brand}>
+        <Text variant="display" style={styles.brand}>
           LinguaMold
         </Text>
-        <Text variant="caption">
+        <Text variant="label" style={styles.gemBadge} accessibilityLabel={`${gems} gemmes`}>
           💎 {gems}
         </Text>
       </View>
       {loading ? (
-        <Text variant="body">{t('common.loading')}</Text>
+        <View style={{ gap: spacing.md }}>
+          <SkeletonLoader height={120} />
+          <SkeletonLoader height={80} />
+          <SkeletonLoader height={120} />
+          <SkeletonLoader height={80} />
+        </View>
+      ) : error ? (
+        <ErrorState message={t('error.network')} onRetry={() => void reload()} retryLabel={t('common.try_again')} />
       ) : (
-        <AdventurePath modules={modules} onSelectModule={openModule} />
+        <FirstTimeTooltip
+          storageKey="linguamold.tooltip.adventure"
+          message={t('adventure.first_time')}
+        >
+          <AdventurePath modules={modules} onSelectModule={openModule} />
+        </FirstTimeTooltip>
       )}
       <Modal visible={Boolean(selected)} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.sheet}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setSelected(null)}>
+          <Pressable style={styles.sheet} onPress={() => {}}>
             <Text variant="h2">{selected?.title_al}</Text>
             {lessonsLoading ? (
               <Text variant="caption">{t('common.loading')}</Text>
             ) : (
               <ScrollView style={styles.list}>
-                {lessons.map((l) => (
-                  <Pressable
-                    key={l.id}
-                    disabled={l.locked}
-                    onPress={() => {
-                      setSelected(null);
-                      router.push(`/lesson/${l.id}`);
-                    }}
-                    style={[styles.lessonRow, l.locked && styles.lessonLocked]}
-                  >
-                    <Text variant="bodyBold">{l.title_al}</Text>
-                    {l.locked ? (
-                      <Text variant="caption">{t('lesson.locked')}</Text>
-                    ) : null}
-                  </Pressable>
-                ))}
+                {lessons.length === 0 ? (
+                  <Text variant="caption" style={styles.emptyLessons}>
+                    {t('common.no_content')}
+                  </Text>
+                ) : (
+                  lessons.map((l) => (
+                    <Pressable
+                      key={l.id}
+                      disabled={l.locked}
+                      onPress={() => {
+                        setSelected(null);
+                        router.push(`/lesson/${l.id}`);
+                      }}
+                      style={[styles.lessonRow, l.locked && styles.lessonLocked]}
+                    >
+                      <View style={styles.lessonRowInner}>
+                        <Text variant="bodyBold" style={styles.lessonTitle}>{l.title_al}</Text>
+                        {l.locked ? (
+                          <Text variant="caption">{t('lesson.locked')}</Text>
+                        ) : (
+                          <Text variant="bodyBold" style={styles.startLabel}>
+                            {t('lesson.start')} →
+                          </Text>
+                        )}
+                      </View>
+                    </Pressable>
+                  ))
+                )}
               </ScrollView>
             )}
             <Pressable onPress={() => setSelected(null)} style={styles.close}>
               <Text variant="bodyBold">{t('common.close')}</Text>
             </Pressable>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </ScreenContainer>
   );
@@ -123,7 +178,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     paddingHorizontal: spacing.xs,
   },
-  brand: { flex: 1, textAlign: 'center' },
+  brand: { flex: 1, textAlign: 'center', letterSpacing: -0.5 },
+  gemBadge: {
+    color: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primaryLight,
+    borderWidth: 1.5,
+    borderColor: '#BAE6FD',
+    overflow: 'hidden',
+  },
   modalBackdrop: {
     flex: 1,
     backgroundColor: colors.overlay,
@@ -142,6 +207,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: colors.border,
   },
+  lessonRowInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  lessonTitle: { flex: 1 },
+  startLabel: { color: colors.primary },
   lessonLocked: { opacity: 0.4 },
+  emptyLessons: { textAlign: 'center', paddingVertical: spacing.lg },
   close: { marginTop: spacing.lg, alignItems: 'center' },
 });

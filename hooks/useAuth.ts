@@ -70,6 +70,28 @@ export function useAuth() {
     };
   }, [loadRole, setLoading, setRole, setSession]);
 
+  const ensureProfile = useCallback(async (uid: string, displayName?: string) => {
+    try {
+      const { data: existing } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('id', uid)
+        .maybeSingle();
+      if (existing) return;
+      await supabase.from('user_profiles').upsert(
+        {
+          id: uid,
+          display_name: displayName ?? '',
+          role: 'user',
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' }
+      );
+    } catch {
+      // Non-fatal — profile will be created on next login
+    }
+  }, []);
+
   const signIn = useCallback(
     async (email: string, password: string) => {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -78,10 +100,14 @@ export function useAuth() {
       });
       if (error) throw error;
       setSession(data.session);
-      if (data.user) await loadRole(data.user.id);
+      if (data.user) {
+        const displayName = data.user.user_metadata?.display_name as string | undefined;
+        await ensureProfile(data.user.id, displayName);
+        await loadRole(data.user.id);
+      }
       return data;
     },
-    [loadRole, setSession]
+    [ensureProfile, loadRole, setSession]
   );
 
   const signUp = useCallback(
@@ -92,24 +118,16 @@ export function useAuth() {
         options: { data: { display_name: displayName } },
       });
       if (error) throw error;
-      const uid = data.user?.id;
-      if (uid) {
-        const { error: profileError } = await supabase.from('user_profiles').upsert(
-          {
-            id: uid,
-            display_name: displayName,
-            role: 'user',
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'id' }
-        );
-        if (profileError) throw profileError;
+      // If email confirmation is required, data.session is null.
+      // Profile creation requires an active session (RLS), so defer it to first sign-in.
+      if (data.session && data.user) {
+        await ensureProfile(data.user.id, displayName);
+        setSession(data.session);
+        await loadRole(data.user.id);
       }
-      setSession(data.session);
-      if (data.user) await loadRole(data.user.id);
       return data;
     },
-    [loadRole, setSession]
+    [ensureProfile, loadRole, setSession]
   );
 
   const signOut = useCallback(async () => {

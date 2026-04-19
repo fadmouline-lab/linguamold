@@ -96,6 +96,7 @@ export function ConversationListen({
       {phase === 'result' ? (
         <Button
           title={t('common.continue')}
+          variant={correct ? 'correct' : 'wrong'}
           onPress={() => {
             setPhase('idle');
             setSelected(null);
@@ -108,7 +109,7 @@ export function ConversationListen({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.sm },
+  wrap: { gap: spacing.lg },
   link: { color: colors.primary },
   box: { gap: spacing.sm },
 });

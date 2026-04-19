@@ -51,7 +51,7 @@ export function SpeakTheWord({
       />
       <AudioPlayer audioUrl={content.audio_url_ll ?? null} />
       <View style={styles.row}>
-        <Button title={t('exercise.self_correct')} onPress={() => done(true)} />
+        <Button title={t('exercise.self_correct')} variant="correct" onPress={() => done(true)} />
         <Button
           title={t('exercise.self_practice')}
           variant="secondary"
@@ -63,6 +63,6 @@ export function SpeakTheWord({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.md },
+  wrap: { gap: spacing.lg },
   row: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
 });

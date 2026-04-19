@@ -1,13 +1,15 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ReorderableList } from '@/components/admin/ReorderableList';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { colors, spacing } from '@/components/ui/theme';
 import { useAdminMode } from '@/hooks/useAdminMode';
+import { useUIString } from '@/hooks/useUIString';
 import { getMoldComponent } from '@/lib/mold-registry';
 import { toMoldExercise } from '@/lib/exercise-mapper';
 import { supabase } from '@/lib/supabase';
@@ -17,7 +19,12 @@ export default function AdminExercisesScreen() {
   const { lessonId } = useLocalSearchParams<{ lessonId: string }>();
   const id = typeof lessonId === 'string' ? lessonId : lessonId?.[0] ?? '';
   const [rows, setRows] = useState<ExerciseRow[]>([]);
+  const [dirty, setDirty] = useState(new Set<string>());
+  const [showUnsaved, setShowUnsaved] = useState(false);
+  const [pendingBack, setPendingBack] = useState<{ action: { type: string } } | null>(null);
   const { reorderItems, saveEdit } = useAdminMode();
+  const { t } = useUIString();
+  const navigation = useNavigation();
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -40,9 +47,19 @@ export default function AdminExercisesScreen() {
     await load();
   };
 
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e: { preventDefault: () => void; data: { action: { type: string } } }) => {
+      if (dirty.size === 0) return;
+      e.preventDefault();
+      setPendingBack(e.data);
+      setShowUnsaved(true);
+    });
+    return unsubscribe;
+  }, [navigation, dirty]);
+
   return (
     <ScreenContainer>
-      <Text variant="h1">Exercises</Text>
+      <Text variant="h1">{t('admin.exercises_title')}</Text>
       <ReorderableList
         adminMode
         items={rows}
@@ -60,14 +77,36 @@ export default function AdminExercisesScreen() {
                   onAnswer={() => {}}
                   onNext={() => {}}
                   isAdminMode
-                  onContentChange={(c) => void saveEdit(ex.id, c)}
+                  onContentChange={(c) => {
+                    setDirty((prev) => new Set(prev).add(ex.id));
+                    void saveEdit(ex.id, c).then(() => {
+                      setDirty((prev) => {
+                        const next = new Set(prev);
+                        next.delete(ex.id);
+                        return next;
+                      });
+                    });
+                  }}
                 />
               ) : null}
             </ScrollView>
           );
         }}
       />
-      <Button title="Refresh" onPress={() => void load()} />
+      <Button title={t('admin.refresh')} onPress={() => void load()} />
+      <ConfirmDialog
+        visible={showUnsaved}
+        title={t('admin.unsaved_changes')}
+        message={t('admin.unsaved_changes')}
+        confirmLabel={t('common.save')}
+        cancelLabel={t('confirm.exit_quit')}
+        onConfirm={() => { setShowUnsaved(false); }}
+        onCancel={() => {
+          setShowUnsaved(false);
+          setDirty(new Set());
+          if (pendingBack) navigation.dispatch(pendingBack.action as never);
+        }}
+      />
     </ScreenContainer>
   );
 }

@@ -3,14 +3,19 @@ import { StyleSheet, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { colors, spacing } from '@/components/ui/theme';
+import { APP_STRINGS_FALLBACK } from '@/lib/app-strings-fallback';
 
 export interface ErrorStateProps {
   message: string;
   onRetry?: () => void;
-  retryLabel: string;
+  retryLabel?: string;
 }
 
-export function ErrorState({ message, onRetry, retryLabel }: ErrorStateProps) {
+export function ErrorState({
+  message,
+  onRetry,
+  retryLabel = APP_STRINGS_FALLBACK['common.try_again'],
+}: ErrorStateProps) {
   return (
     <View style={styles.wrap}>
       <Text variant="h3" style={styles.title}>

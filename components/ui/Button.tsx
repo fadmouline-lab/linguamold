@@ -14,18 +14,19 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { Text } from '@/components/ui/Text';
-import { colors, radii, spacing } from '@/components/ui/theme';
+import { button3D, colors, radii, spacing } from '@/components/ui/theme';
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'correct' | 'wrong';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
-
-export interface ButtonProps extends Omit<PressableProps, 'children'> {
+export interface ButtonProps extends Omit<PressableProps, 'style'> {
   title: string;
   variant?: ButtonVariant;
   loading?: boolean;
   haptic?: boolean;
+  style?: import('react-native').StyleProp<import('react-native').ViewStyle>;
 }
+
+const SPRING_CONFIG = { damping: 15, stiffness: 150 };
 
 export function Button({
   title,
@@ -39,26 +40,42 @@ export function Button({
   style,
   ...rest
 }: ButtonProps) {
-  const scale = useSharedValue(1);
+  const pressed = useSharedValue(0);
+  const has3D = variant !== 'outline' && variant !== 'ghost';
+  const palette = paletteForVariant(variant);
+  const isDisabled = Boolean(disabled || loading);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+  // Outer animated view: holds the 3D bottom border (not overflow-clipped)
+  const outerAnimStyle = useAnimatedStyle(() => ({
+    borderBottomWidth: has3D
+      ? withSpring(pressed.value === 1 ? 0 : 4, SPRING_CONFIG)
+      : 0,
+    marginBottom: has3D
+      ? withSpring(pressed.value === 1 ? 4 : 0, SPRING_CONFIG)
+      : 0,
+  }));
+
+  // Inner animated view: scale + press-down shift
+  const innerAnimStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: withSpring(pressed.value === 1 ? 0.97 : 1, SPRING_CONFIG) },
+    ],
   }));
 
   const handlePressIn = useCallback(
     (e: Parameters<NonNullable<PressableProps['onPressIn']>>[0]) => {
-      scale.value = withSpring(0.97, { damping: 15, stiffness: 400 });
+      pressed.value = 1;
       onPressIn?.(e);
     },
-    [onPressIn, scale]
+    [onPressIn, pressed]
   );
 
   const handlePressOut = useCallback(
     (e: Parameters<NonNullable<PressableProps['onPressOut']>>[0]) => {
-      scale.value = withSpring(1, { damping: 15, stiffness: 400 });
+      pressed.value = 0;
       onPressOut?.(e);
     },
-    [onPressOut, scale]
+    [onPressOut, pressed]
   );
 
   const handlePress = useCallback(
@@ -71,88 +88,106 @@ export function Button({
     [disabled, haptic, loading, onPress]
   );
 
-  const palette = stylesForVariant(variant);
-  const isDisabled = Boolean(disabled || loading);
-
   return (
-    <AnimatedPressable
-      accessibilityRole="button"
-      {...rest}
-      disabled={isDisabled}
-      onPress={handlePress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
+    <Animated.View
       style={[
-        styles.base,
-        palette.container,
-        isDisabled && styles.disabled,
-        animatedStyle,
+        styles.outer,
+        {
+          borderRadius: radii.sm,
+          borderBottomColor: palette.bottomColor,
+          opacity: isDisabled ? 0.5 : 1,
+        },
+        outerAnimStyle,
         style,
       ]}
     >
-      <View style={styles.inner}>
-        {loading ? (
-          <ActivityIndicator color={palette.indicatorColor} />
-        ) : (
-          <Text variant="button" style={[styles.label, { color: palette.textColor }]}>
-            {title}
-          </Text>
-        )}
-      </View>
-    </AnimatedPressable>
+      <Pressable
+        accessibilityRole="button"
+        {...rest}
+        disabled={isDisabled}
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[
+          styles.pressable,
+          {
+            backgroundColor: palette.backgroundColor,
+            borderRadius: radii.sm,
+          },
+          variant === 'outline' ? styles.outline : null,
+        ]}
+      >
+        <Animated.View style={[styles.inner, innerAnimStyle]}>
+          {loading ? (
+            <ActivityIndicator color={palette.textColor} />
+          ) : (
+            <Text variant="button" style={{ color: palette.textColor }}>
+              {title}
+            </Text>
+          )}
+        </Animated.View>
+      </Pressable>
+    </Animated.View>
   );
 }
 
-function stylesForVariant(variant: ButtonVariant) {
+function paletteForVariant(variant: ButtonVariant) {
   switch (variant) {
     case 'secondary':
       return {
-        container: {
-          backgroundColor: colors.surfaceLight,
-          borderWidth: 1,
-          borderColor: colors.border,
-        },
+        backgroundColor: colors.surfaceLight,
         textColor: colors.textPrimary,
-        indicatorColor: colors.textPrimary,
+        bottomColor: button3D.secondaryBottom,
       };
     case 'outline':
       return {
-        container: {
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          borderColor: colors.primary,
-        },
+        backgroundColor: 'transparent' as const,
         textColor: colors.primary,
-        indicatorColor: colors.primary,
+        bottomColor: 'transparent' as const,
       };
     case 'ghost':
       return {
-        container: { backgroundColor: 'transparent' },
+        backgroundColor: 'transparent' as const,
         textColor: colors.textSecondary,
-        indicatorColor: colors.textSecondary,
+        bottomColor: 'transparent' as const,
       };
-    default:
+    case 'correct':
       return {
-        container: { backgroundColor: colors.primary },
-        textColor: colors.textPrimary,
-        indicatorColor: colors.textPrimary,
+        backgroundColor: colors.success,
+        textColor: '#FFFFFF',
+        bottomColor: button3D.correctBottom,
+      };
+    case 'wrong':
+      return {
+        backgroundColor: colors.error,
+        textColor: '#FFFFFF',
+        bottomColor: button3D.errorBottom,
+      };
+    default: // primary
+      return {
+        backgroundColor: colors.primary,
+        textColor: '#FFFFFF',
+        bottomColor: button3D.primaryBottom,
       };
   }
 }
 
 const styles = StyleSheet.create({
-  base: {
-    borderRadius: radii.sm,
+  outer: {
+    borderBottomWidth: 4,
+  },
+  pressable: {
     overflow: 'hidden',
   },
   inner: {
     minHeight: 48,
     paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  label: {
-    textTransform: 'uppercase',
+  outline: {
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
-  disabled: { opacity: 0.5 },
 });

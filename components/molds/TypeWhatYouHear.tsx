@@ -8,9 +8,9 @@ import { SuccessMessage } from '@/components/common/SuccessMessage';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
-import { spacing } from '@/components/ui/theme';
+import { colors, spacing } from '@/components/ui/theme';
 import { useUIString } from '@/hooks/useUIString';
-import { scoreTypeWhatYouHear } from '@/lib/scoring';
+import { scoreTypeWhatYouHearFuzzy } from '@/lib/scoring';
 import type { MoldProps, TypeWhatYouHearContent } from '@/types/molds';
 
 export function TypeWhatYouHear({
@@ -23,17 +23,23 @@ export function TypeWhatYouHear({
   const [text, setText] = useState('');
   const [phase, setPhase] = useState<'idle' | 'result'>('idle');
   const [correct, setCorrect] = useState(false);
+  const [close, setClose] = useState(false);
+  const [bestMatch, setBestMatch] = useState<string | null>(null);
 
   const check = () => {
-    const ok = scoreTypeWhatYouHear(content, text);
-    setCorrect(ok);
+    const trimmed = text.trim();
+    setText(trimmed);
+    const result = scoreTypeWhatYouHearFuzzy(content, trimmed);
+    setCorrect(result.correct);
+    setClose(result.close);
+    setBestMatch(result.bestMatch);
     setPhase('result');
-    onAnswer(ok, text);
+    onAnswer(result.correct, trimmed);
   };
 
   return (
     <View style={styles.wrap}>
-      <ExerciseHeader moldLabel="Type what you hear" />
+      <ExerciseHeader moldLabel={t('mold.type_hear_label')} />
       <AudioPlayer audioUrl={content.audio_url_ll ?? null} autoPlay />
       {content.hint_al ? <Text variant="caption">{content.hint_al}</Text> : null}
       <Input value={text} onChangeText={setText} editable={phase === 'idle'} />
@@ -41,13 +47,28 @@ export function TypeWhatYouHear({
         <Button title={t('exercise.check')} onPress={() => void check()} />
       ) : null}
       <SuccessMessage visible={phase === 'result' && correct} message={t('lesson.correct')} />
+      {phase === 'result' && !correct && close ? (
+        <View style={styles.almost}>
+          <Text variant="bodyBold" style={{ color: colors.accent }}>
+            {t('lesson.almost')}
+          </Text>
+          {bestMatch ? (
+            <Text variant="caption" style={{ color: colors.textSecondary }}>
+              {bestMatch}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
       <ErrorMessage visible={phase === 'result' && !correct} message={t('lesson.wrong')} />
       {phase === 'result' ? (
         <Button
           title={t('common.continue')}
+          variant={correct ? 'correct' : 'wrong'}
           onPress={() => {
             setPhase('idle');
             setText('');
+            setClose(false);
+            setBestMatch(null);
             onNext();
           }}
         />
@@ -56,4 +77,7 @@ export function TypeWhatYouHear({
   );
 }
 
-const styles = StyleSheet.create({ wrap: { gap: spacing.md } });
+const styles = StyleSheet.create({
+  wrap: { gap: spacing.lg },
+  almost: { alignItems: 'center', gap: spacing.xs },
+});

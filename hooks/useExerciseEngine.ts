@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 
 import {
   HEARTS_MAX,
+  LEVEL_XP_STEP,
   XP_COMBO_BONUS,
   XP_CORRECT_ANSWER,
   XP_LESSON_COMPLETE,
@@ -9,12 +10,24 @@ import {
 } from '@/lib/constants';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
+import { useGamificationStore } from '@/stores/gamificationStore';
 import type { LessonAnswer } from '@/stores/lessonStore';
 import { useLessonStore } from '@/stores/lessonStore';
 import type { ExerciseRow } from '@/types/index';
+import { useUiStringStore } from '@/stores/uiStringStore';
+import { APP_STRINGS_FALLBACK } from '@/lib/app-strings-fallback';
 
 export function useExerciseEngine(placementMode = false) {
   const userId = useAuthStore((s) => s.user?.id);
+  const strings = useUiStringStore((s) => s.strings);
+  const tStatic = useCallback(
+    (key: string, vars?: Record<string, string | number>): string => {
+      const raw = strings[key] ?? APP_STRINGS_FALLBACK[key] ?? key;
+      if (!vars) return raw;
+      return raw.replace(/\{\{(\w+)\}\}/g, (_, k: string) => String(vars[k] ?? `{{${k}}}`));
+    },
+    [strings]
+  );
 
   const exercises = useLessonStore((s) => s.exercises);
   const currentIndex = useLessonStore((s) => s.currentIndex);
@@ -154,6 +167,16 @@ export function useExerciseEngine(placementMode = false) {
           updated_at: new Date().toISOString(),
         })
         .eq('id', userId);
+      const newTotal = cur + xpBase;
+      const newLevel = Math.floor(newTotal / LEVEL_XP_STEP) + 1;
+      const prevLevel = useGamificationStore.getState().previousLevel;
+      if (newLevel > prevLevel) {
+        useGamificationStore.getState().pushToast(
+          tStatic('gamify.level_up', { level: newLevel }),
+          '🎉'
+        );
+      }
+      useGamificationStore.getState().setPreviousLevel(newLevel);
     } else {
       st.next();
     }

@@ -1,5 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { ExerciseHeader } from '@/components/common/ExerciseHeader';
 import { EditableField } from '@/components/molds/EditableField';
@@ -32,6 +38,24 @@ export function MatchPairs({
   const [rightSel, setRightSel] = useState<string | null>(null);
   const [matched, setMatched] = useState<{ al: string; ll: string }[]>([]);
   const [flash, setFlash] = useState<'ok' | 'bad' | null>(null);
+
+  const shakeX = useSharedValue(0);
+
+  useEffect(() => {
+    if (flash === 'bad') {
+      shakeX.value = withSequence(
+        withTiming(-8, { duration: 40 }),
+        withTiming(8, { duration: 40 }),
+        withTiming(-8, { duration: 40 }),
+        withTiming(8, { duration: 40 }),
+        withTiming(0, { duration: 40 })
+      );
+    }
+  }, [flash, shakeX]);
+
+  const shakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shakeX.value }],
+  }));
 
   const patch = (next: Partial<MatchPairsContent>) => {
     const merged = { ...content, ...next };
@@ -67,7 +91,7 @@ export function MatchPairs({
         multiline
         onCommit={(v) => patch({ prompt_al: v })}
       />
-      <View style={styles.cols}>
+      <Animated.View style={[styles.cols, shakeStyle]}>
         <View style={styles.col}>
           {content.pairs.map((p) => {
             const done = matched.some((m) => m.al === p.al);
@@ -120,14 +144,14 @@ export function MatchPairs({
             );
           })}
         </View>
-      </View>
+      </Animated.View>
       <Text variant="caption">{t('lesson.progress')}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.md },
+  wrap: { gap: spacing.lg },
   cols: { flexDirection: 'row', gap: spacing.md },
   col: { flex: 1, gap: spacing.sm },
   cell: {
@@ -137,7 +161,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  cellSel: { borderColor: colors.accent },
+  cellSel: { borderColor: colors.accent, borderWidth: 2 },
   cellDone: { opacity: 0.35 },
-  cellBad: { borderColor: colors.error },
+  cellBad: { borderColor: colors.error, borderWidth: 2 },
 });

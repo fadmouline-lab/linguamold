@@ -10,13 +10,13 @@ export function AdminToggleBar() {
   return (
     <View style={styles.bar}>
       <Text variant="caption" style={styles.txt}>
-        [ADMIN] {selectedAL?.flag_emoji ?? ''} → {selectedLL?.flag_emoji ?? ''}
+        🔧 ADMIN {selectedAL?.flag_emoji ?? ''} → {selectedLL?.flag_emoji ?? ''}
       </Text>
       <Switch
         value={isAdminMode}
         onValueChange={(v) => setAdminMode(v)}
-        thumbColor={colors.textPrimary}
-        trackColor={{ false: colors.border, true: colors.primary }}
+        thumbColor={isAdminMode ? colors.background : colors.textSecondary}
+        trackColor={{ false: colors.border, true: '#D97706' }}
       />
     </View>
   );

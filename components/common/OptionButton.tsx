@@ -1,5 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Pressable, StyleSheet, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { Text } from '@/components/ui/Text';
 import { colors, radii, spacing } from '@/components/ui/theme';
@@ -37,13 +38,26 @@ export function OptionButton({
         style,
       ]}
     >
-      <Text
-        variant="bodyBold"
-        style={{ color: palette.text }}
-        numberOfLines={3}
-      >
-        {label}
-      </Text>
+      {state === 'correct' || state === 'wrong' ? (
+        <View style={styles.labelRow}>
+          <Ionicons
+            name={state === 'correct' ? 'checkmark-circle' : 'close-circle'}
+            size={20}
+            color={palette.text}
+          />
+          <Text variant="bodyBold" style={{ color: palette.text, flex: 1 }} numberOfLines={3}>
+            {label}
+          </Text>
+        </View>
+      ) : (
+        <Text
+          variant="bodyBold"
+          style={{ color: palette.text }}
+          numberOfLines={3}
+        >
+          {label}
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -86,4 +100,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   pressed: { opacity: 0.9 },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
 });

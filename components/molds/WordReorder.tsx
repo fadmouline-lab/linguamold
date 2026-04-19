@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { FadeOut, LinearTransition, ZoomIn } from 'react-native-reanimated';
 
 import { AudioPlayer } from '@/components/common/AudioPlayer';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
@@ -69,7 +70,7 @@ export function WordReorder({
 
   return (
     <View style={styles.wrap}>
-      <ExerciseHeader moldLabel="Word order" />
+      <ExerciseHeader moldLabel={t('mold.reorder_label')} />
       <EditableField
         isAdminMode={isAdminMode}
         value={content.prompt_al}
@@ -79,16 +80,29 @@ export function WordReorder({
       <AudioPlayer audioUrl={content.audio_url_ll ?? null} />
       <View style={styles.slots}>
         {slots.map((idx, pos) => (
-          <Pressable key={`s-${idx}-${pos}`} onPress={() => tapSlot(pos)} style={styles.chip}>
-            <Text variant="bodyBold">{words[idx]}</Text>
-          </Pressable>
+          <Animated.View
+            key={`s-${idx}`}
+            entering={ZoomIn.duration(200)}
+            exiting={FadeOut.duration(150)}
+            layout={LinearTransition.springify()}
+          >
+            <Pressable onPress={() => tapSlot(pos)} style={styles.chip}>
+              <Text variant="bodyBold">{words[idx]}</Text>
+            </Pressable>
+          </Animated.View>
         ))}
       </View>
       <View style={styles.pool}>
         {pool.map((idx, pos) => (
-          <Pressable key={`p-${idx}-${pos}`} onPress={() => tapPool(pos)} style={styles.chip}>
-            <Text variant="body">{words[idx]}</Text>
-          </Pressable>
+          <Animated.View
+            key={`p-${idx}`}
+            exiting={FadeOut.duration(150)}
+            layout={LinearTransition.springify()}
+          >
+            <Pressable onPress={() => tapPool(pos)} style={styles.chip}>
+              <Text variant="body">{words[idx]}</Text>
+            </Pressable>
+          </Animated.View>
         ))}
       </View>
       {phase === 'idle' ? (
@@ -99,6 +113,7 @@ export function WordReorder({
       {phase === 'result' ? (
         <Button
           title={t('common.continue')}
+          variant={correct ? 'correct' : 'wrong'}
           onPress={() => {
             setPhase('idle');
             setSlots([]);
@@ -112,11 +127,12 @@ export function WordReorder({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.md },
+  wrap: { gap: spacing.lg },
   slots: {
     minHeight: 56,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderStyle: 'dashed',
+    borderColor: colors.primary,
     borderRadius: radii.md,
     padding: spacing.sm,
     flexDirection: 'row',
