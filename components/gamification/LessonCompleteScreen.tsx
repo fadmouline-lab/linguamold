@@ -154,11 +154,21 @@ function XPCounter({ target }: XPCounterProps) {
 
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
+export interface WordSummary {
+  word: string;
+  translation: string;
+}
+
 export interface LessonCompleteScreenProps {
   scorePct: number;
   xpEarned: number;
   streakKept: boolean;
   onContinue: () => void;
+  wordsLearned?: WordSummary[];
+  wordsToReview?: WordSummary[];
+  nextLessonTitle?: string;
+  dailyGoalMinutes?: number;
+  dailyGoalCurrent?: number;
 }
 
 export function LessonCompleteScreen({
@@ -166,6 +176,11 @@ export function LessonCompleteScreen({
   xpEarned,
   streakKept,
   onContinue,
+  wordsLearned,
+  wordsToReview,
+  nextLessonTitle,
+  dailyGoalMinutes,
+  dailyGoalCurrent,
 }: LessonCompleteScreenProps) {
   const { t } = useUIString();
   const stars = scorePct < 60 ? 1 : scorePct < 90 ? 2 : 3;
@@ -222,6 +237,41 @@ export function LessonCompleteScreen({
           {streakKept ? `  ·  🔥 ${t('gamify.streak')}` : ''}
         </Text>
 
+        {/* TODO(motion): section reveal animations (staggered slide-up) */}
+        {wordsLearned && wordsLearned.length > 0 && (
+          <View style={styles.section}>
+            <Text variant="label" style={styles.sectionTitle}>
+              {t('lesson.complete_words_learned')}
+            </Text>
+            {wordsLearned.map((w, i) => (
+              <Text key={i} variant="body" style={styles.wordRow}>
+                {w.word} — {w.translation}
+              </Text>
+            ))}
+          </View>
+        )}
+
+        {wordsToReview && wordsToReview.length > 0 && (
+          <View style={styles.section}>
+            <Text variant="label" style={styles.sectionTitleError}>
+              {t('lesson.complete_review')}
+            </Text>
+            {wordsToReview.map((w, i) => (
+              <Text key={i} variant="body" style={styles.wordRow}>
+                {w.word} — {w.translation}
+              </Text>
+            ))}
+          </View>
+        )}
+
+        {nextLessonTitle && (
+          <View style={styles.section}>
+            <Text variant="caption" style={styles.nextUp}>
+              {t('lesson.complete_next', { title: nextLessonTitle })}
+            </Text>
+          </View>
+        )}
+
         <View style={styles.spacer} />
 
         <Animated.View style={[styles.btnWrap, btnStyle]}>
@@ -271,4 +321,9 @@ const styles = StyleSheet.create({
   },
   spacer: { height: spacing.xxxl },
   btnWrap: { width: '100%' },
+  section: { width: '100%', marginTop: spacing.lg, gap: spacing.xs },
+  sectionTitle: { color: colors.primary, marginBottom: spacing.xs },
+  sectionTitleError: { color: colors.error, marginBottom: spacing.xs },
+  wordRow: { color: colors.textPrimary },
+  nextUp: { color: colors.textSecondary, textAlign: 'center' },
 });
