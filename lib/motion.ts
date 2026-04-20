@@ -25,14 +25,40 @@ export const SPRING = {
 
 export type DeviceTier = 'high' | 'mid' | 'low';
 
-// Stub — enhanced in M4.1 with expo-device RAM detection
-export function getDeviceTier(): DeviceTier {
+// Session-level tier can be auto-downgraded on frame drops
+let _sessionTier: DeviceTier | null = null;
+let _frameDropCount = 0;
+
+function computeBaseTier(): DeviceTier {
   if (Platform.OS === 'ios') return 'high';
   const { width, height } = Dimensions.get('screen');
   const pixels = width * height;
-  if (pixels > 2073600) return 'high';
-  if (pixels > 921600) return 'mid';
+  if (pixels > 2073600) return 'high'; // 1920×1080+
+  if (pixels > 921600)  return 'mid';  // 1280×720+
   return 'low';
+}
+
+export function getDeviceTier(): DeviceTier {
+  if (_sessionTier !== null) return _sessionTier;
+  _sessionTier = computeBaseTier();
+  return _sessionTier;
+}
+
+// Call from animation callbacks when frame drops are detected.
+// After 3 drops in a session, tier auto-downgrades (capped at 'low').
+export function reportFrameDrop(): void {
+  _frameDropCount++;
+  if (_frameDropCount >= 3) {
+    const current = getDeviceTier();
+    if (current === 'high') _sessionTier = 'mid';
+    else if (current === 'mid') _sessionTier = 'low';
+    _frameDropCount = 0;
+  }
+}
+
+export function resetTierForTesting(): void {
+  _sessionTier = null;
+  _frameDropCount = 0;
 }
 
 // Guard for screen-level transitions only (not decorative animations)
@@ -40,7 +66,7 @@ export function getDeviceTier(): DeviceTier {
 let _isTransitioning = false;
 
 export const transitionGuard = {
-  start(): void { _isTransitioning = true; },
-  end():   void { _isTransitioning = false; },
+  start(): void  { _isTransitioning = true; },
+  end():   void  { _isTransitioning = false; },
   get isActive(): boolean { return _isTransitioning; },
 } as const;
