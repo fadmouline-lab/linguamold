@@ -60,9 +60,6 @@ export default function LeaderboardScreen() {
 
   return (
     <ScreenContainer>
-      <Text variant="h1" style={styles.title}>
-        {t('gamify.leaderboard_weekly')}
-      </Text>
       {initialLoading ? (
         <View style={{ gap: spacing.md }}>
           <SkeletonLoader height={130} />
@@ -139,7 +136,6 @@ export default function LeaderboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: { marginBottom: spacing.lg },
   podium: {
     flexDirection: 'row',
     alignItems: 'flex-end',

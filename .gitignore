@@ -46,3 +46,4 @@ yarn-error.*
 content-generation/audio-samples/
 content-generation/audio-output/
 content-generation/.polly-usage.json
+content-generation/exercises_export.json

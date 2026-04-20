@@ -5,6 +5,8 @@ import Animated, { FadeOut, LinearTransition, ZoomIn } from 'react-native-reanim
 import { AudioPlayer } from '@/components/common/AudioPlayer';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { ExerciseHeader } from '@/components/common/ExerciseHeader';
+import { HintButton } from '@/components/common/HintButton';
+import { SkipButton } from '@/components/common/SkipButton';
 import { SuccessMessage } from '@/components/common/SuccessMessage';
 import { EditableField } from '@/components/molds/EditableField';
 import { Button } from '@/components/ui/Button';
@@ -20,7 +22,11 @@ export function WordReorder({
   onNext,
   isAdminMode,
   onContentChange,
-}: MoldProps) {
+  onSkip,
+  skipCount,
+  hintsUsed,
+  onHint,
+}: MoldProps & { onSkip?: () => void; skipCount?: number; hintsUsed?: number; onHint?: () => void }) {
   const { t } = useUIString();
   const base = exercise.content as unknown as WordReorderContent;
   const [content, setContent] = useState(base);
@@ -71,6 +77,10 @@ export function WordReorder({
   return (
     <View style={styles.wrap}>
       <ExerciseHeader moldLabel={t('mold.reorder_label')} />
+      {/* TODO(motion) */}
+      {phase === 'idle' && onHint ? (
+        <HintButton onHint={onHint} hintsUsed={hintsUsed ?? 0} />
+      ) : null}
       <EditableField
         isAdminMode={isAdminMode}
         value={content.prompt_al}
@@ -108,8 +118,20 @@ export function WordReorder({
       {phase === 'idle' ? (
         <Button title={t('exercise.check')} onPress={() => void check()} />
       ) : null}
-      <SuccessMessage visible={phase === 'result' && correct} message={t('lesson.correct')} />
-      <ErrorMessage visible={phase === 'result' && !correct} message={t('lesson.wrong')} />
+      {/* TODO(motion) */}
+      {phase === 'idle' && onSkip ? (
+        <SkipButton onSkip={onSkip} skipCount={skipCount ?? 0} />
+      ) : null}
+      <SuccessMessage
+        visible={phase === 'result' && correct}
+        message={t('lesson.correct')}
+        detail={content.correct_sentence_ll || null}
+      />
+      <ErrorMessage
+        visible={phase === 'result' && !correct}
+        message={t('lesson.wrong')}
+        detail={content.correct_sentence_ll || null}
+      />
       {phase === 'result' ? (
         <Button
           title={t('common.continue')}

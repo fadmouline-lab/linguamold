@@ -13,10 +13,11 @@ import { colors, radii, spacing } from '@/components/ui/theme';
 
 export interface ErrorMessageProps {
   message: string;
+  detail?: string | null;
   visible: boolean;
 }
 
-export function ErrorMessage({ message, visible }: ErrorMessageProps) {
+export function ErrorMessage({ message, detail, visible }: ErrorMessageProps) {
   const tx = useSharedValue(0);
 
   useEffect(() => {
@@ -42,9 +43,14 @@ export function ErrorMessage({ message, visible }: ErrorMessageProps) {
 
   return (
     <Animated.View style={[styles.box, anim]}>
-      <Text variant="body" style={styles.text}>
+      <Text variant="caption" style={styles.headline}>
         {message}
       </Text>
+      {detail ? (
+        <Text variant="body" style={styles.explanation}>
+          {detail}
+        </Text>
+      ) : null}
     </Animated.View>
   );
 }
@@ -57,6 +63,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.error,
     marginVertical: spacing.sm,
+    gap: spacing.xs,
   },
-  text: { color: colors.error },
+  headline: { color: colors.error, opacity: 0.85 },
+  explanation: { color: colors.textPrimary },
 });

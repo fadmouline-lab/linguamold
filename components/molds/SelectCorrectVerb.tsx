@@ -3,7 +3,9 @@ import { StyleSheet, View } from 'react-native';
 
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { ExerciseHeader } from '@/components/common/ExerciseHeader';
+import { HintButton } from '@/components/common/HintButton';
 import { OptionButton, type OptionState } from '@/components/common/OptionButton';
+import { SkipButton } from '@/components/common/SkipButton';
 import { SuccessMessage } from '@/components/common/SuccessMessage';
 import { EditableField } from '@/components/molds/EditableField';
 import { Button } from '@/components/ui/Button';
@@ -19,7 +21,11 @@ export function SelectCorrectVerb({
   onNext,
   isAdminMode,
   onContentChange,
-}: MoldProps) {
+  onSkip,
+  skipCount,
+  hintsUsed,
+  onHint,
+}: MoldProps & { onSkip?: () => void; skipCount?: number; hintsUsed?: number; onHint?: () => void }) {
   const { t } = useUIString();
   const base = exercise.content as unknown as SelectCorrectVerbContent;
   const [content, setContent] = useState(base);
@@ -52,6 +58,10 @@ export function SelectCorrectVerb({
   return (
     <View style={styles.wrap}>
       <ExerciseHeader moldLabel="Verb" />
+      {/* TODO(motion) */}
+      {phase === 'idle' && onHint ? (
+        <HintButton onHint={onHint} hintsUsed={hintsUsed ?? 0} />
+      ) : null}
       <EditableField
         isAdminMode={isAdminMode}
         value={content.sentence_ll}
@@ -73,11 +83,20 @@ export function SelectCorrectVerb({
           onPress={() => submit(i)}
         />
       ))}
-      {phase === 'result' && correct && content.grammar_hint_al ? (
-        <Text variant="caption">{content.grammar_hint_al}</Text>
+      {/* TODO(motion) */}
+      {phase === 'idle' && onSkip ? (
+        <SkipButton onSkip={onSkip} skipCount={skipCount ?? 0} />
       ) : null}
-      <SuccessMessage visible={phase === 'result' && correct} message={t('lesson.correct')} />
-      <ErrorMessage visible={phase === 'result' && !correct} message={t('lesson.wrong')} />
+      <SuccessMessage
+        visible={phase === 'result' && correct}
+        message={t('lesson.correct')}
+        detail={content.grammar_hint_al || null}
+      />
+      <ErrorMessage
+        visible={phase === 'result' && !correct}
+        message={t('lesson.wrong')}
+        detail={content.options.find((o) => o.is_correct)?.text || null}
+      />
       {phase === 'result' ? (
         <Button
           title={t('common.continue')}

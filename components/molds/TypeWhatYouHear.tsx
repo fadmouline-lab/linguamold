@@ -4,6 +4,8 @@ import { StyleSheet, View } from 'react-native';
 import { AudioPlayer } from '@/components/common/AudioPlayer';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { ExerciseHeader } from '@/components/common/ExerciseHeader';
+import { HintButton } from '@/components/common/HintButton';
+import { SkipButton } from '@/components/common/SkipButton';
 import { SuccessMessage } from '@/components/common/SuccessMessage';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -17,7 +19,11 @@ export function TypeWhatYouHear({
   exercise,
   onAnswer,
   onNext,
-}: MoldProps) {
+  onSkip,
+  skipCount,
+  hintsUsed,
+  onHint,
+}: MoldProps & { onSkip?: () => void; skipCount?: number; hintsUsed?: number; onHint?: () => void }) {
   const { t } = useUIString();
   const content = exercise.content as unknown as TypeWhatYouHearContent;
   const [text, setText] = useState('');
@@ -40,13 +46,26 @@ export function TypeWhatYouHear({
   return (
     <View style={styles.wrap}>
       <ExerciseHeader moldLabel={t('mold.type_hear_label')} />
+      {/* TODO(motion) */}
+      {phase === 'idle' && onHint ? (
+        <HintButton onHint={onHint} hintsUsed={hintsUsed ?? 0} />
+      ) : null}
       <AudioPlayer audioUrl={content.audio_url_ll ?? null} autoPlay />
       {content.hint_al ? <Text variant="caption">{content.hint_al}</Text> : null}
       <Input value={text} onChangeText={setText} editable={phase === 'idle'} />
       {phase === 'idle' ? (
         <Button title={t('exercise.check')} onPress={() => void check()} />
       ) : null}
-      <SuccessMessage visible={phase === 'result' && correct} message={t('lesson.correct')} />
+      {/* TODO(motion) */}
+      {phase === 'idle' && onSkip ? (
+        <SkipButton onSkip={onSkip} skipCount={skipCount ?? 0} />
+      ) : null}
+      <SuccessMessage
+        visible={phase === 'result' && correct}
+        message={t('lesson.correct')}
+        detail={content.accepted_answers?.[0] ?? null}
+      />
+      {/* TODO: Ticket 1.2 — add "Try again" button and char-diff highlighting for "almost" state */}
       {phase === 'result' && !correct && close ? (
         <View style={styles.almost}>
           <Text variant="bodyBold" style={{ color: colors.accent }}>
@@ -59,7 +78,11 @@ export function TypeWhatYouHear({
           ) : null}
         </View>
       ) : null}
-      <ErrorMessage visible={phase === 'result' && !correct} message={t('lesson.wrong')} />
+      <ErrorMessage
+        visible={phase === 'result' && !correct && !close}
+        message={t('lesson.wrong')}
+        detail={content.accepted_answers?.[0] ?? null}
+      />
       {phase === 'result' ? (
         <Button
           title={t('common.continue')}

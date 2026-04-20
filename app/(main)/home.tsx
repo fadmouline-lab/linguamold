@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Modal,
@@ -43,28 +43,29 @@ export default function HomeScreen() {
   const pushToast = useGamificationStore((s) => s.pushToast);
   const streakBeforeCheck = useRef<number | null>(null);
 
-  useEffect(() => {
-    const run = async () => {
-      if (!userId) return;
-      const { data } = await supabase
-        .from('user_profiles')
-        .select(
-          'total_xp, current_streak, longest_streak, gems, hearts, hearts_last_regen'
-        )
-        .eq('id', userId)
-        .maybeSingle();
-      const row = data as {
-        total_xp: number;
-        current_streak: number;
-        longest_streak: number;
-        gems: number;
-        hearts: number;
-        hearts_last_regen: string;
-      } | null;
-      if (row) setFromProfile(row);
-    };
-    void run();
+  const refreshProfile = useCallback(async () => {
+    if (!userId) return;
+    const { data } = await supabase
+      .from('user_profiles')
+      .select(
+        'total_xp, current_streak, longest_streak, gems, hearts, hearts_last_regen'
+      )
+      .eq('id', userId)
+      .maybeSingle();
+    const row = data as {
+      total_xp: number;
+      current_streak: number;
+      longest_streak: number;
+      gems: number;
+      hearts: number;
+      hearts_last_regen: string;
+    } | null;
+    if (row) setFromProfile(row);
   }, [setFromProfile, userId]);
+
+  useEffect(() => {
+    void refreshProfile();
+  }, [refreshProfile]);
 
   useEffect(() => {
     const run = async () => {
@@ -92,6 +93,13 @@ export default function HomeScreen() {
   const openModule = useCallback((m: ModuleWithProgress) => {
     setSelected(m);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void reload();
+      void refreshProfile();
+    }, [reload, refreshProfile])
+  );
 
   return (
     <ScreenContainer edges={['top', 'left', 'right']}>

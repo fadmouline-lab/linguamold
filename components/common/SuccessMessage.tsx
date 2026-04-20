@@ -12,10 +12,12 @@ import { colors, radii, spacing } from '@/components/ui/theme';
 
 export interface SuccessMessageProps {
   message: string;
+  detail?: string | null;
   visible: boolean;
+  context?: 'standard' | 'combo' | 'recovery';
 }
 
-export function SuccessMessage({ message, visible }: SuccessMessageProps) {
+export function SuccessMessage({ message, detail, visible }: SuccessMessageProps) {
   const scale = useSharedValue(1);
 
   useEffect(() => {
@@ -38,6 +40,11 @@ export function SuccessMessage({ message, visible }: SuccessMessageProps) {
       <Text variant="bodyBold" style={styles.text}>
         {message}
       </Text>
+      {detail ? (
+        <Text variant="body" style={styles.detail}>
+          {detail}
+        </Text>
+      ) : null}
     </Animated.View>
   );
 }
@@ -50,6 +57,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary,
     marginVertical: spacing.sm,
+    gap: spacing.xs,
   },
   text: { color: colors.primary },
+  detail: { color: colors.primary, opacity: 0.85 },
 });

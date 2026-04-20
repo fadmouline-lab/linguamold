@@ -22,7 +22,6 @@ export function useModules() {
       setLoading(false);
       return;
     }
-    setLoading(true);
     setError(null);
     try {
       const { data: pair } = await supabase
@@ -61,7 +60,6 @@ export function useModules() {
       setModules(withProg);
     } catch {
       setError('load_failed');
-      setModules([]);
     } finally {
       setLoading(false);
     }

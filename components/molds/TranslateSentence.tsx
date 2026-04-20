@@ -4,6 +4,8 @@ import { StyleSheet, View } from 'react-native';
 import { AudioPlayer } from '@/components/common/AudioPlayer';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { ExerciseHeader } from '@/components/common/ExerciseHeader';
+import { HintButton } from '@/components/common/HintButton';
+import { SkipButton } from '@/components/common/SkipButton';
 import { SuccessMessage } from '@/components/common/SuccessMessage';
 import { EditableField } from '@/components/molds/EditableField';
 import { Button } from '@/components/ui/Button';
@@ -20,7 +22,11 @@ export function TranslateSentence({
   onNext,
   isAdminMode,
   onContentChange,
-}: MoldProps) {
+  onSkip,
+  skipCount,
+  hintsUsed,
+  onHint,
+}: MoldProps & { onSkip?: () => void; skipCount?: number; hintsUsed?: number; onHint?: () => void }) {
   const { t } = useUIString();
   const base = exercise.content as unknown as TranslateSentenceContent;
   const [content, setContent] = useState(base);
@@ -51,6 +57,10 @@ export function TranslateSentence({
   return (
     <View style={styles.wrap}>
       <ExerciseHeader moldLabel={t('mold.translate_label')} />
+      {/* TODO(motion) */}
+      {phase === 'idle' && onHint ? (
+        <HintButton onHint={onHint} hintsUsed={hintsUsed ?? 0} />
+      ) : null}
       <EditableField
         isAdminMode={isAdminMode}
         value={content.prompt_al}
@@ -77,10 +87,16 @@ export function TranslateSentence({
           <Button title={t('exercise.check')} onPress={() => void check()} />
         </View>
       ) : null}
+      {/* TODO(motion) */}
+      {phase === 'idle' && onSkip ? (
+        <SkipButton onSkip={onSkip} skipCount={skipCount ?? 0} />
+      ) : null}
       <SuccessMessage
         visible={phase === 'result' && correct}
         message={t('lesson.correct')}
+        detail={content.accepted_answers_ll?.[0] ?? null}
       />
+      {/* TODO: Ticket 1.2 — add "Try again" button and char-diff highlighting for "almost" state */}
       {phase === 'result' && !correct && close ? (
         <View style={styles.almost}>
           <Text variant="bodyBold" style={{ color: colors.accent }}>
@@ -94,8 +110,9 @@ export function TranslateSentence({
         </View>
       ) : null}
       <ErrorMessage
-        visible={phase === 'result' && !correct}
+        visible={phase === 'result' && !correct && !close}
         message={t('lesson.wrong')}
+        detail={content.accepted_answers_ll?.[0] ?? null}
       />
       {phase === 'result' ? (
         <Button

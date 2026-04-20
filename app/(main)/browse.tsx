@@ -53,7 +53,6 @@ export default function BrowseScreen() {
 
   return (
     <ScreenContainer>
-      <Text variant="h1">{t('nav.browse')}</Text>
       <TextInput
         value={q}
         onChangeText={setQ}

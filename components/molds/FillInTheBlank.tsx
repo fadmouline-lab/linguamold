@@ -4,7 +4,9 @@ import { StyleSheet, View } from 'react-native';
 import { AudioPlayer } from '@/components/common/AudioPlayer';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { ExerciseHeader } from '@/components/common/ExerciseHeader';
+import { HintButton } from '@/components/common/HintButton';
 import { OptionButton, type OptionState } from '@/components/common/OptionButton';
+import { SkipButton } from '@/components/common/SkipButton';
 import { SuccessMessage } from '@/components/common/SuccessMessage';
 import { EditableField } from '@/components/molds/EditableField';
 import { Button } from '@/components/ui/Button';
@@ -20,7 +22,11 @@ export function FillInTheBlank({
   onNext,
   isAdminMode,
   onContentChange,
-}: MoldProps) {
+  onSkip,
+  skipCount,
+  hintsUsed,
+  onHint,
+}: MoldProps & { onSkip?: () => void; skipCount?: number; hintsUsed?: number; onHint?: () => void }) {
   const { t } = useUIString();
   const base = exercise.content as unknown as FillInTheBlankContent;
   const [content, setContent] = useState(base);
@@ -62,6 +68,10 @@ export function FillInTheBlank({
   return (
     <View style={styles.wrap}>
       <ExerciseHeader moldLabel={t('mold.fill_blank_label')} />
+      {/* TODO(motion) */}
+      {phase === 'idle' && onHint ? (
+        <HintButton onHint={onHint} hintsUsed={hintsUsed ?? 0} />
+      ) : null}
       <View style={styles.sentenceRow}>
         {isAdminMode ? (
           <EditableField
@@ -92,13 +102,23 @@ export function FillInTheBlank({
           onPress={() => submit(i)}
         />
       ))}
+      {/* TODO(motion) */}
+      {phase === 'idle' && onSkip ? (
+        <SkipButton onSkip={onSkip} skipCount={skipCount ?? 0} />
+      ) : null}
       <SuccessMessage
         visible={phase === 'result' && correct}
-        message={content.success_message_al ?? t('lesson.correct')}
+        message={t('lesson.correct')}
+        detail={content.success_message_al ?? content.sentence_ll ?? null}
       />
       <ErrorMessage
         visible={phase === 'result' && !correct}
-        message={content.error_explanation_al ?? t('lesson.wrong')}
+        message={t('lesson.wrong')}
+        detail={
+          content.error_explanation_al ??
+          content.options.find((o) => o.is_correct)?.text ??
+          null
+        }
       />
       {phase === 'result' ? (
         <Button

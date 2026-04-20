@@ -4,7 +4,9 @@ import { StyleSheet, View } from 'react-native';
 import { AudioPlayer } from '@/components/common/AudioPlayer';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { ExerciseHeader } from '@/components/common/ExerciseHeader';
+import { HintButton } from '@/components/common/HintButton';
 import { OptionButton, type OptionState } from '@/components/common/OptionButton';
+import { SkipButton } from '@/components/common/SkipButton';
 import { SuccessMessage } from '@/components/common/SuccessMessage';
 import { EditableField } from '@/components/molds/EditableField';
 import { Button } from '@/components/ui/Button';
@@ -19,7 +21,11 @@ export function ListenAndChoose({
   onNext,
   isAdminMode,
   onContentChange,
-}: MoldProps) {
+  onSkip,
+  skipCount,
+  hintsUsed,
+  onHint,
+}: MoldProps & { onSkip?: () => void; skipCount?: number; hintsUsed?: number; onHint?: () => void }) {
   const { t } = useUIString();
   const base = exercise.content as unknown as ListenAndChooseContent;
   const [content, setContent] = useState(base);
@@ -52,6 +58,10 @@ export function ListenAndChoose({
   return (
     <View style={styles.wrap}>
       <ExerciseHeader moldLabel="Listen" />
+      {/* TODO(motion) */}
+      {phase === 'idle' && onHint ? (
+        <HintButton onHint={onHint} hintsUsed={hintsUsed ?? 0} />
+      ) : null}
       <AudioPlayer audioUrl={content.audio_url_ll ?? null} autoPlay />
       <EditableField
         isAdminMode={isAdminMode}
@@ -62,14 +72,26 @@ export function ListenAndChoose({
       {content.options.map((o, i) => (
         <OptionButton
           key={`${o.text_ll}-${i}`}
-          label={`${o.text_ll}\n${o.text_al}`}
+          label={o.text_al}
           state={optionState(i)}
           disabled={phase === 'result'}
           onPress={() => submit(i)}
         />
       ))}
-      <SuccessMessage visible={phase === 'result' && correct} message={t('lesson.correct')} />
-      <ErrorMessage visible={phase === 'result' && !correct} message={t('lesson.wrong')} />
+      {/* TODO(motion) */}
+      {phase === 'idle' && onSkip ? (
+        <SkipButton onSkip={onSkip} skipCount={skipCount ?? 0} />
+      ) : null}
+      <SuccessMessage
+        visible={phase === 'result' && correct}
+        message={t('lesson.correct')}
+        detail={content.options.find((o) => o.is_correct)?.text_ll || null}
+      />
+      <ErrorMessage
+        visible={phase === 'result' && !correct}
+        message={t('lesson.wrong')}
+        detail={content.options.find((o) => o.is_correct)?.text_al || null}
+      />
       {phase === 'result' ? (
         <Button
           title={t('common.continue')}

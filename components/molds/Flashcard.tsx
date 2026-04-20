@@ -9,6 +9,7 @@ import Animated, {
 
 import { AudioPlayer } from '@/components/common/AudioPlayer';
 import { ExerciseHeader } from '@/components/common/ExerciseHeader';
+import { SkipButton } from '@/components/common/SkipButton';
 import { EditableField } from '@/components/molds/EditableField';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
@@ -23,7 +24,9 @@ export function Flashcard({
   onNext,
   isAdminMode,
   onContentChange,
-}: MoldProps) {
+  onSkip,
+  skipCount,
+}: MoldProps & { onSkip?: () => void; skipCount?: number }) {
   const { t } = useUIString();
   const base = exercise.content as unknown as FlashcardContent;
   const [content, setContent] = useState(base);
@@ -62,40 +65,52 @@ export function Flashcard({
         <Animated.View style={[styles.cardArea, cardStyle]}>
           {showBack ? (
             <View style={styles.inner}>
-              <EditableField
-                isAdminMode={isAdminMode}
-                value={content.translation_al}
-                onCommit={(v) => patch({ translation_al: v })}
-              />
-              <EditableField
-                isAdminMode={isAdminMode}
-                value={content.example_ll}
-                multiline
-                onCommit={(v) => patch({ example_ll: v })}
-              />
-              <EditableField
-                isAdminMode={isAdminMode}
-                value={content.example_al}
-                multiline
-                onCommit={(v) => patch({ example_al: v })}
-              />
-              <AudioPlayer audioUrl={content.audio_url_ll ?? null} />
+              {(isAdminMode || content.translation_al) ? (
+                <EditableField
+                  isAdminMode={isAdminMode}
+                  value={content.translation_al ?? ''}
+                  onCommit={(v) => patch({ translation_al: v })}
+                />
+              ) : null}
+              {(isAdminMode || (content.example_ll && content.example_ll !== content.translation_al)) ? (
+                <EditableField
+                  isAdminMode={isAdminMode}
+                  value={content.example_ll ?? ''}
+                  multiline
+                  onCommit={(v) => patch({ example_ll: v })}
+                />
+              ) : null}
+              {(isAdminMode || (content.example_al && content.example_al !== content.example_ll && content.example_al !== content.translation_al)) ? (
+                <EditableField
+                  isAdminMode={isAdminMode}
+                  value={content.example_al ?? ''}
+                  multiline
+                  onCommit={(v) => patch({ example_al: v })}
+                />
+              ) : null}
+              <AudioPlayer audioUrl={content.audio_url_ll ?? null} autoPlay />
             </View>
           ) : (
             <View style={styles.inner}>
-              <EditableField
-                isAdminMode={isAdminMode}
-                value={content.word_ll}
-                onCommit={(v) => patch({ word_ll: v })}
-              />
-              {content.pronunciation_ll ? (
+              {(isAdminMode || content.word_ll) ? (
+                <EditableField
+                  isAdminMode={isAdminMode}
+                  value={content.word_ll ?? ''}
+                  onCommit={(v) => patch({ word_ll: v })}
+                />
+              ) : null}
+              {content.pronunciation_ll && content.pronunciation_ll !== content.word_ll ? (
                 <Text variant="caption">{content.pronunciation_ll}</Text>
               ) : null}
-              <Text variant="caption" style={styles.tapHint}>{t('lesson.progress')}</Text>
+              <Text variant="caption" style={styles.tapHint}>{t('mold.flashcard_tap_to_flip')}</Text>
             </View>
           )}
         </Animated.View>
       </Pressable>
+      {/* TODO(motion) */}
+      {!showBack && onSkip ? (
+        <SkipButton onSkip={onSkip} skipCount={skipCount ?? 0} />
+      ) : null}
       <View style={styles.row}>
         <Button title={t('exercise.self_correct')} variant="correct" onPress={() => finish()} />
         <Button
