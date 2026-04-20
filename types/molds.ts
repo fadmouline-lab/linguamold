@@ -30,6 +30,10 @@ export interface MoldProps {
   onNext: () => void;
   isAdminMode?: boolean;
   onContentChange?: (newContent: Record<string, unknown>) => void;
+  onSkip?: () => void;
+  skipCount?: number;
+  onHint?: () => void;
+  hintsUsed?: number;
 }
 
 export interface FillInTheBlankContent {

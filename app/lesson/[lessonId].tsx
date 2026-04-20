@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { ComboCounter } from '@/components/gamification/ComboCounter';
 import { HeartDisplay } from '@/components/gamification/HeartDisplay';
 import { LessonCompleteScreen } from '@/components/gamification/LessonCompleteScreen';
 import { ProgressBar } from '@/components/gamification/ProgressBar';
@@ -25,6 +26,8 @@ import { useHearts } from '@/hooks/useHearts';
 import { useUIString } from '@/hooks/useUIString';
 import { getMoldComponent } from '@/lib/mold-registry';
 import { toMoldExercise } from '@/lib/exercise-mapper';
+import { playSound, unloadSounds } from '@/lib/sounds';
+import { useLessonStore } from '@/stores/lessonStore';
 import {
   XP_CORRECT_ANSWER,
   XP_COMBO_BONUS,
@@ -52,6 +55,11 @@ export default function LessonScreen() {
     getScore,
     isPerfect,
     resetLesson,
+    skipExercise,
+    useHint,
+    comboStreak,
+    skipCount,
+    practiceMode,
   } = useExerciseEngine(placementMode);
   const { canPlay, getTimeToNextHeart } = useHearts();
   const [blocked, setBlocked] = useState(false);
@@ -59,6 +67,8 @@ export default function LessonScreen() {
   const [minutesLeft, setMinutesLeft] = useState(0);
   const [xpBurst, setXpBurst] = useState(false);
   const lastAnswerRef = useRef<boolean | null>(null);
+  const [hintsUsed, setHintsUsed] = useState(0);
+  const soundEnabled = useLessonStore((s) => s.soundEnabled);
 
   // Flash overlay for correct/wrong feedback
   const flashOpacity = useSharedValue(0);
@@ -72,7 +82,10 @@ export default function LessonScreen() {
   useEffect(() => {
     if (!id) return;
     void loadLesson(id);
-    return () => resetLesson();
+    return () => {
+      resetLesson();
+      void unloadSounds();
+    };
   }, [id, loadLesson, resetLesson]);
 
   useEffect(() => {
@@ -101,12 +114,25 @@ export default function LessonScreen() {
         setXpBurst(true);
         setTimeout(() => setXpBurst(false), 900);
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (soundEnabled) void playSound('correct');
       } else {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        if (soundEnabled) void playSound('wrong');
       }
+      setHintsUsed(0);
     },
-    [submitAnswer, triggerFlash]
+    [submitAnswer, triggerFlash, hintsUsed, soundEnabled]
   );
+
+  const onSkip = useCallback(async () => {
+    await skipExercise();
+    setHintsUsed(0);
+  }, [skipExercise]);
+
+  const onHintPress = useCallback(() => {
+    const count = useHint();
+    setHintsUsed(count);
+  }, [useHint]);
 
   const onNext = useCallback(async () => {
     await advance();
@@ -154,7 +180,10 @@ export default function LessonScreen() {
       <ScreenContainer>
         <View style={styles.blockedCenter}>
           <Text style={styles.blockedEmoji}>💔</Text>
-          <Text variant="h2">{t('lesson.no_hearts')}</Text>
+          <Text variant="h2">{t('lesson.recharge_title')}</Text>
+          <Text variant="body" style={styles.blockedSub}>
+            {t('lesson.recharge_subtitle')}
+          </Text>
           <Text variant="body" style={styles.blockedTimer}>
             ⏱️ {minutesLeft} min
           </Text>
@@ -165,10 +194,12 @@ export default function LessonScreen() {
               onPress={() => router.push('/(main)/shop')}
             />
             <Button
-              title={t('lesson.no_hearts_review')}
+              title={t('lesson.practice_mode')}
               variant="outline"
-              disabled
-              onPress={() => {}}
+              onPress={() => {
+                useLessonStore.getState().setPracticeMode(true);
+                setBlocked(false);
+              }}
             />
             <Pressable onPress={leaveLesson} style={styles.blockedClose}>
               <Text variant="bodyBold" style={{ color: colors.textSecondary }}>
@@ -216,6 +247,16 @@ export default function LessonScreen() {
 
       <XPGainFloat amount={XP_CORRECT_ANSWER + XP_COMBO_BONUS} visible={xpBurst} />
 
+      <ComboCounter streak={comboStreak} />
+
+      {practiceMode && (
+        <View style={styles.practiceBanner}>
+          <Text variant="caption" style={styles.practiceBannerText}>
+            {t('lesson.practice_banner')}
+          </Text>
+        </View>
+      )}
+
       {moldExercise && Mold ? (
         <Animated.View
           key={moldExercise.id}
@@ -226,6 +267,10 @@ export default function LessonScreen() {
             exercise={toMoldExercise(moldExercise)}
             onAnswer={(ok, ans) => void onAnswer(ok, ans)}
             onNext={() => void onNext()}
+            onSkip={onSkip}
+            skipCount={skipCount}
+            onHint={onHintPress}
+            hintsUsed={hintsUsed}
           />
         </Animated.View>
       ) : (
@@ -321,5 +366,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.sm,
     padding: spacing.md,
+  },
+  blockedSub: {
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  practiceBanner: {
+    backgroundColor: colors.surfaceLight,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
+    alignSelf: 'center',
+    marginBottom: spacing.sm,
+  },
+  practiceBannerText: {
+    color: colors.textSecondary,
   },
 });
