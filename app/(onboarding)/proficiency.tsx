@@ -77,7 +77,7 @@ export default function ProficiencyScreen() {
           router.replace('/(onboarding)/placement-test');
           return;
         }
-        router.replace('/(main)/home');
+        router.replace('/(onboarding)/motivation');
       } finally {
         setSaving(false);
       }

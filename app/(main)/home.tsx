@@ -14,7 +14,10 @@ import { AdventurePath } from '@/components/adventure/AdventurePath';
 import { ErrorState } from '@/components/common/ErrorState';
 import { FirstTimeTooltip } from '@/components/common/FirstTimeTooltip';
 import { SkeletonLoader } from '@/components/common/SkeletonLoader';
+import { DailyGoalRing } from '@/components/gamification/DailyGoalRing';
 import { StreakBadge } from '@/components/gamification/StreakBadge';
+import { WelcomeBackScreen } from '@/components/gamification/WelcomeBackScreen';
+import { StreakBreakScreen } from '@/components/gamification/StreakBreakScreen';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
 import { colors, radii, spacing } from '@/components/ui/theme';
@@ -42,6 +45,12 @@ export default function HomeScreen() {
   const { checkStreak } = useStreak();
   const pushToast = useGamificationStore((s) => s.pushToast);
   const streakBeforeCheck = useRef<number | null>(null);
+  const [showWelcomeBack, setShowWelcomeBack] = useState(false);
+  const [showStreakBreak, setShowStreakBreak] = useState(false);
+  const [welcomeBackDay, setWelcomeBackDay] = useState(2);
+  const [previousStreak, setPreviousStreak] = useState(0);
+  const [dailyGoalMinutes, setDailyGoalMinutes] = useState(10);
+  const [dailyGoalCurrent, setDailyGoalCurrent] = useState(0);
 
   const refreshProfile = useCallback(async () => {
     if (!userId) return;
@@ -79,11 +88,26 @@ export default function HomeScreen() {
       await checkStreak();
       const after = useGamificationStore.getState().currentStreak;
 
-      if (streakBeforeCheck.current > 0 && after === 0) {
-        pushToast(t('gamify.streak_lost'), '😢');
+      if (streakBeforeCheck.current != null && streakBeforeCheck.current > 0 && after === 0) {
+        setPreviousStreak(streakBeforeCheck.current);
+        setShowStreakBreak(true);
+      } else if (after > 0 && after <= 5) {
+        const wbKey = `linguamold.welcome_back_${today}`;
+        const wbShown = await AsyncStorage.getItem(wbKey);
+        if (!wbShown && [2, 3, 5].includes(after)) {
+          setWelcomeBackDay(after);
+          setShowWelcomeBack(true);
+          await AsyncStorage.setItem(wbKey, '1');
+        } else if (after > 0) {
+          pushToast(t('gamify.streak_celebration'), '🔥');
+        }
       } else if (after > 0) {
         pushToast(t('gamify.streak_celebration'), '🔥');
       }
+
+      // Load daily goal progress
+      const goalStr = await AsyncStorage.getItem('linguamold.daily_goal_minutes');
+      if (goalStr) setDailyGoalMinutes(Number(goalStr) || 10);
 
       await AsyncStorage.setItem(key, '1');
     };
@@ -101,11 +125,37 @@ export default function HomeScreen() {
     }, [reload, refreshProfile])
   );
 
+  if (showWelcomeBack) {
+    return (
+      <WelcomeBackScreen
+        dayCount={welcomeBackDay}
+        wordsLearned={0}
+        onContinue={() => setShowWelcomeBack(false)}
+        onDismiss={() => setShowWelcomeBack(false)}
+      />
+    );
+  }
+
+  if (showStreakBreak) {
+    return (
+      <StreakBreakScreen
+        previousStreak={previousStreak}
+        totalWordsLearned={0}
+        onStartFresh={() => setShowStreakBreak(false)}
+        onVisitShop={() => {
+          setShowStreakBreak(false);
+          router.push('/(main)/shop');
+        }}
+      />
+    );
+  }
+
   return (
     <ScreenContainer edges={['top', 'left', 'right']}>
       {isAdminMode && checkIsAdmin() ? <AdminToggleBar /> : null}
       <View style={styles.header}>
         <StreakBadge />
+        <DailyGoalRing currentMinutes={dailyGoalCurrent} goalMinutes={dailyGoalMinutes} compact />
         <Text variant="display" style={styles.brand}>
           LinguaMold
         </Text>

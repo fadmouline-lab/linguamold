@@ -17,7 +17,7 @@ export default function PlacementTestScreen() {
     if (lessonId) {
       router.replace(`/lesson/${lessonId}?placement=1`);
     } else {
-      router.replace('/(main)/home');
+      router.replace('/(onboarding)/motivation');
     }
   }, [lessonId, loading]);
 
