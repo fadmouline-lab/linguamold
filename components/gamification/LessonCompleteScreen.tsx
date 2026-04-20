@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import Animated, {
   cancelAnimation,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -14,7 +13,9 @@ import Animated, {
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { colors, spacing } from '@/components/ui/theme';
+import { useCountUp } from '@/hooks/useCountUp';
 import { useUIString } from '@/hooks/useUIString';
+import { TIMING } from '@/lib/motion';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -121,37 +122,6 @@ function AnimatedStar({ filled, delay }: AnimatedStarProps) {
   );
 }
 
-// ─── XP Counter ──────────────────────────────────────────────────────────────
-
-interface XPCounterProps {
-  target: number;
-}
-
-function XPCounter({ target }: XPCounterProps) {
-  const displayed = useSharedValue(0);
-  const displayRef = useRef(0);
-
-  useEffect(() => {
-    displayed.value = withDelay(
-      400,
-      withTiming(target, { duration: 1500 }, (finished) => {
-        if (finished) runOnJS(() => { displayRef.current = target; })();
-      })
-    );
-  }, [displayed, target]);
-
-  const style = useAnimatedStyle(() => ({
-    // Use a hack: we animate from 0 to target and display the value
-    // via Text that re-renders — actually we just show the animated value
-  }));
-
-  return (
-    <Animated.Text style={[styles.xpText, style]}>
-      +{target} XP
-    </Animated.Text>
-  );
-}
-
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export interface WordSummary {
@@ -186,6 +156,7 @@ export function LessonCompleteScreen({
   const stars = scorePct < 60 ? 1 : scorePct < 90 ? 2 : 3;
   const showConfetti = scorePct >= 90;
   const particles = useRef(makeParticles()).current;
+  const xpDisplay = useCountUp(xpEarned, TIMING.slow, 400);
 
   // Title slides in
   const titleY = useSharedValue(30);
@@ -229,7 +200,7 @@ export function LessonCompleteScreen({
         </View>
 
         <Text variant="h3" style={styles.xpText}>
-          +{xpEarned} {t('gamify.xp')}
+          +{xpDisplay} {t('gamify.xp')}
         </Text>
 
         <Text variant="caption" style={styles.scoreText}>

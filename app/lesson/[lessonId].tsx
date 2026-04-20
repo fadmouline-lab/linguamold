@@ -26,7 +26,7 @@ import { useHearts } from '@/hooks/useHearts';
 import { useUIString } from '@/hooks/useUIString';
 import { getMoldComponent } from '@/lib/mold-registry';
 import { toMoldExercise } from '@/lib/exercise-mapper';
-import { playSound, unloadSounds } from '@/lib/sounds';
+import { playSound, preloadSounds, unloadSounds } from '@/lib/sounds';
 import { useLessonStore } from '@/stores/lessonStore';
 import {
   XP_CORRECT_ANSWER,
@@ -82,6 +82,7 @@ export default function LessonScreen() {
   useEffect(() => {
     if (!id) return;
     void loadLesson(id);
+    void preloadSounds();
     return () => {
       resetLesson();
       void unloadSounds();
@@ -114,10 +115,16 @@ export default function LessonScreen() {
         setXpBurst(true);
         setTimeout(() => setXpBurst(false), 900);
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        if (soundEnabled) void playSound('correct');
+        if (soundEnabled) {
+          playSound('correct');
+          const newStreak = useLessonStore.getState().comboStreak;
+          if (newStreak === 10)     playSound('combo10');
+          else if (newStreak === 5) playSound('combo5');
+          else if (newStreak === 3) playSound('combo3');
+        }
       } else {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        if (soundEnabled) void playSound('wrong');
+        if (soundEnabled) playSound('wrong');
       }
       setHintsUsed(0);
     },

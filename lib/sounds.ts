@@ -3,32 +3,54 @@ import { Audio } from 'expo-av';
 type SoundKey = 'correct' | 'wrong' | 'almost' | 'combo3' | 'combo5' | 'combo10';
 
 const soundCache: Partial<Record<SoundKey, Audio.Sound>> = {};
+const ALL_KEYS: SoundKey[] = ['correct', 'wrong', 'almost', 'combo3', 'combo5', 'combo10'];
 
 let soundEnabled = true;
 
-export function setSoundEnabled(enabled: boolean) {
+export function setSoundEnabled(enabled: boolean): void {
   soundEnabled = enabled;
 }
 
-export function getSoundEnabled() {
+export function getSoundEnabled(): boolean {
   return soundEnabled;
 }
 
-// TODO(motion): sound timing must sync with visual feedback (green flash + chime simultaneous)
-export async function playSound(key: SoundKey): Promise<void> {
-  if (!soundEnabled) return;
+// Preload all sounds eagerly — call at lesson start to warm cache before first answer.
+// Target: <50ms perceived gap between visual flash and audio (perceptual simultaneity).
+export async function preloadSounds(): Promise<void> {
+  await Promise.all(
+    ALL_KEYS.map(async (key) => {
+      if (soundCache[key]) return;
+      try {
+        const { sound } = await Audio.Sound.createAsync(getSoundAsset(key));
+        soundCache[key] = sound;
+      } catch {
+        // silent — sound degrades gracefully
+      }
+    })
+  );
+}
 
-  try {
-    if (!soundCache[key]) {
-      const { sound } = await Audio.Sound.createAsync(getSoundAsset(key));
-      soundCache[key] = sound;
+// Fire-and-forget: no await, no bridge round-trip wait.
+// Visual feedback fires simultaneously; audio plays as soon as engine delivers it.
+export function playSound(key: SoundKey): void {
+  if (!soundEnabled) return;
+  void (async () => {
+    try {
+      const cached = soundCache[key];
+      if (cached) {
+        await cached.setPositionAsync(0);
+        await cached.playAsync();
+      } else {
+        // Fallback: lazy load on first play if preload was skipped
+        const { sound } = await Audio.Sound.createAsync(getSoundAsset(key));
+        soundCache[key] = sound;
+        await sound.playAsync();
+      }
+    } catch {
+      // silent degradation on load failure
     }
-    const sound = soundCache[key]!;
-    await sound.setPositionAsync(0);
-    await sound.playAsync();
-  } catch {
-    // Silent graceful degradation on load failure
-  }
+  })();
 }
 
 export async function unloadSounds(): Promise<void> {
@@ -44,6 +66,5 @@ export async function unloadSounds(): Promise<void> {
 
 function getSoundAsset(_key: SoundKey) {
   // Placeholder: real sound assets will be bundled in assets/sounds/
-  // For now, return a silent placeholder to avoid crashes
   return require('@/assets/sounds/placeholder.mp3');
 }

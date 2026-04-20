@@ -1,8 +1,10 @@
-import { View, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { colors, spacing } from '@/components/ui/theme';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { useUIString } from '@/hooks/useUIString';
 
 interface SkipButtonProps {
@@ -13,9 +15,10 @@ interface SkipButtonProps {
 
 export function SkipButton({ onSkip, disabled, skipCount }: SkipButtonProps) {
   const { t } = useUIString();
+  const mountStyle = useAnimatedMount({ translateY: 10 });
 
   return (
-    <View style={styles.container}>
+    <Animated.View style={[styles.container, mountStyle]}>
       <Button
         title={t('exercise.i_dont_know')}
         variant="ghost"
@@ -29,7 +32,7 @@ export function SkipButton({ onSkip, disabled, skipCount }: SkipButtonProps) {
           {t('exercise.skip_cost')}
         </Text>
       )}
-    </View>
+    </Animated.View>
   );
 }
 

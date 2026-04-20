@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AudioPlayer } from '@/components/common/AudioPlayer';
+import { DiffHighlight } from '@/components/common/DiffHighlight';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { ExerciseHeader } from '@/components/common/ExerciseHeader';
 import { HintButton } from '@/components/common/HintButton';
@@ -46,7 +47,6 @@ export function TypeWhatYouHear({
   return (
     <View style={styles.wrap}>
       <ExerciseHeader moldLabel={t('mold.type_hear_label')} />
-      {/* TODO(motion) */}
       {phase === 'idle' && onHint ? (
         <HintButton onHint={onHint} hintsUsed={hintsUsed ?? 0} />
       ) : null}
@@ -56,7 +56,6 @@ export function TypeWhatYouHear({
       {phase === 'idle' ? (
         <Button title={t('exercise.check')} onPress={() => void check()} />
       ) : null}
-      {/* TODO(motion) */}
       {phase === 'idle' && onSkip ? (
         <SkipButton onSkip={onSkip} skipCount={skipCount ?? 0} />
       ) : null}
@@ -65,16 +64,13 @@ export function TypeWhatYouHear({
         message={t('lesson.correct')}
         detail={content.accepted_answers?.[0] ?? null}
       />
-      {/* TODO: Ticket 1.2 — add "Try again" button and char-diff highlighting for "almost" state */}
       {phase === 'result' && !correct && close ? (
         <View style={styles.almost}>
           <Text variant="bodyBold" style={{ color: colors.accent }}>
             {t('lesson.almost')}
           </Text>
           {bestMatch ? (
-            <Text variant="caption" style={{ color: colors.textSecondary }}>
-              {bestMatch}
-            </Text>
+            <DiffHighlight userText={text} correctText={bestMatch} />
           ) : null}
         </View>
       ) : null}

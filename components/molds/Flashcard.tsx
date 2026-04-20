@@ -107,7 +107,6 @@ export function Flashcard({
           )}
         </Animated.View>
       </Pressable>
-      {/* TODO(motion) */}
       {!showBack && onSkip ? (
         <SkipButton onSkip={onSkip} skipCount={skipCount ?? 0} />
       ) : null}

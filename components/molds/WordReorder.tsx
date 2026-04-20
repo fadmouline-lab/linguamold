@@ -77,7 +77,6 @@ export function WordReorder({
   return (
     <View style={styles.wrap}>
       <ExerciseHeader moldLabel={t('mold.reorder_label')} />
-      {/* TODO(motion) */}
       {phase === 'idle' && onHint ? (
         <HintButton onHint={onHint} hintsUsed={hintsUsed ?? 0} />
       ) : null}
@@ -118,7 +117,6 @@ export function WordReorder({
       {phase === 'idle' ? (
         <Button title={t('exercise.check')} onPress={() => void check()} />
       ) : null}
-      {/* TODO(motion) */}
       {phase === 'idle' && onSkip ? (
         <SkipButton onSkip={onSkip} skipCount={skipCount ?? 0} />
       ) : null}

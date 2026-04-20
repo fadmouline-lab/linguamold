@@ -68,7 +68,6 @@ export function FillInTheBlank({
   return (
     <View style={styles.wrap}>
       <ExerciseHeader moldLabel={t('mold.fill_blank_label')} />
-      {/* TODO(motion) */}
       {phase === 'idle' && onHint ? (
         <HintButton onHint={onHint} hintsUsed={hintsUsed ?? 0} />
       ) : null}
@@ -102,7 +101,6 @@ export function FillInTheBlank({
           onPress={() => submit(i)}
         />
       ))}
-      {/* TODO(motion) */}
       {phase === 'idle' && onSkip ? (
         <SkipButton onSkip={onSkip} skipCount={skipCount ?? 0} />
       ) : null}

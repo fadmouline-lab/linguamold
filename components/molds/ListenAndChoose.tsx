@@ -58,7 +58,6 @@ export function ListenAndChoose({
   return (
     <View style={styles.wrap}>
       <ExerciseHeader moldLabel="Listen" />
-      {/* TODO(motion) */}
       {phase === 'idle' && onHint ? (
         <HintButton onHint={onHint} hintsUsed={hintsUsed ?? 0} />
       ) : null}
@@ -78,7 +77,6 @@ export function ListenAndChoose({
           onPress={() => submit(i)}
         />
       ))}
-      {/* TODO(motion) */}
       {phase === 'idle' && onSkip ? (
         <SkipButton onSkip={onSkip} skipCount={skipCount ?? 0} />
       ) : null}
