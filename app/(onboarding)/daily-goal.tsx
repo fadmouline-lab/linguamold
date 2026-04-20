@@ -1,13 +1,23 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
 import { Button } from '@/components/ui/Button';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
 import { colors, radii, spacing } from '@/components/ui/theme';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useUIString } from '@/hooks/useUIString';
+import { SPRING } from '@/lib/motion';
 
 interface GoalOption {
   emoji: string;
@@ -16,11 +26,62 @@ interface GoalOption {
 }
 
 const GOAL_OPTIONS: GoalOption[] = [
-  { emoji: '🐢', labelKey: 'onboarding.goal_casual', minutes: 5 },
+  { emoji: '🐢', labelKey: 'onboarding.goal_casual',  minutes: 5  },
   { emoji: '🎯', labelKey: 'onboarding.goal_regular', minutes: 10 },
   { emoji: '🔥', labelKey: 'onboarding.goal_serious', minutes: 15 },
   { emoji: '🚀', labelKey: 'onboarding.goal_intense', minutes: 20 },
 ];
+
+function GoalCard({
+  option,
+  isSelected,
+  onPress,
+  mountDelay,
+}: {
+  option: GoalOption;
+  isSelected: boolean;
+  onPress: () => void;
+  mountDelay: number;
+}) {
+  const { t } = useUIString();
+  const reduced = useReducedMotion();
+  const mountStyle = useAnimatedMount({ translateY: 20, delay: mountDelay });
+  const pressScale = useSharedValue(1);
+
+  const handlePressIn = useCallback(() => {
+    if (reduced) return;
+    pressScale.value = withSpring(0.95, SPRING.snappy);
+  }, [pressScale, reduced]);
+
+  const handlePressOut = useCallback(() => {
+    if (reduced) return;
+    cancelAnimation(pressScale);
+    pressScale.value = withSpring(1, SPRING.button);
+  }, [pressScale, reduced]);
+
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }],
+  }));
+
+  return (
+    <Animated.View style={[mountStyle, pressStyle]}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[styles.card, isSelected && styles.cardSelected]}
+      >
+        <Text style={styles.emoji}>{option.emoji}</Text>
+        <View style={styles.cardText}>
+          <Text variant="bodyBold">{t(option.labelKey)}</Text>
+          <Text variant="caption">
+            {option.minutes} {t('onboarding.minutes_per_day') || 'min/day'}
+          </Text>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}
 
 export default function DailyGoalScreen() {
   const router = useRouter();
@@ -29,10 +90,7 @@ export default function DailyGoalScreen() {
 
   const handleContinue = async () => {
     if (selectedMinutes === null) return;
-    await AsyncStorage.setItem(
-      'linguamold.daily_goal_minutes',
-      String(selectedMinutes)
-    );
+    await AsyncStorage.setItem('linguamold.daily_goal_minutes', String(selectedMinutes));
     router.push('/(onboarding)/notifications');
   };
 
@@ -48,27 +106,15 @@ export default function DailyGoalScreen() {
         </Text>
 
         <View style={styles.options}>
-          {GOAL_OPTIONS.map((option) => {
-            const isSelected = selectedMinutes === option.minutes;
-            return (
-              <Pressable
-                key={option.minutes}
-                onPress={() => setSelectedMinutes(option.minutes)}
-                style={[
-                  styles.card,
-                  isSelected && styles.cardSelected,
-                ]}
-              >
-                <Text style={styles.emoji}>{option.emoji}</Text>
-                <View style={styles.cardText}>
-                  <Text variant="bodyBold">{t(option.labelKey)}</Text>
-                  <Text variant="caption">
-                    {option.minutes} {t('onboarding.minutes_per_day') || 'min/day'}
-                  </Text>
-                </View>
-              </Pressable>
-            );
-          })}
+          {GOAL_OPTIONS.map((option, i) => (
+            <GoalCard
+              key={option.minutes}
+              option={option}
+              isSelected={selectedMinutes === option.minutes}
+              onPress={() => setSelectedMinutes(option.minutes)}
+              mountDelay={i * 100}
+            />
+          ))}
         </View>
       </ScrollView>
 

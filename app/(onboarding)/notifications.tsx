@@ -6,11 +6,14 @@ import { Button } from '@/components/ui/Button';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
 import { colors, spacing } from '@/components/ui/theme';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { useUIString } from '@/hooks/useUIString';
+import Animated from 'react-native-reanimated';
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const { t } = useUIString();
+  const contentStyle = useAnimatedMount({ translateY: 30 });
 
   const handleEnable = async () => {
     await Notifications.requestPermissionsAsync();
@@ -23,7 +26,7 @@ export default function NotificationsScreen() {
 
   return (
     <ScreenContainer>
-      <View style={styles.content}>
+      <Animated.View style={[styles.content, contentStyle]}>
         <Text style={styles.bellEmoji}>🔔</Text>
         <Text variant="h1" style={styles.title}>
           {t('onboarding.notifications_title')}
@@ -31,7 +34,7 @@ export default function NotificationsScreen() {
         <Text variant="body" color={colors.textSecondary} style={styles.subtitle}>
           {t('onboarding.notifications_sub')}
         </Text>
-      </View>
+      </Animated.View>
 
       <View style={styles.footer}>
         <Button

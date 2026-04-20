@@ -1,13 +1,24 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { useCallback } from 'react';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
 import { Button } from '@/components/ui/Button';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
 import { colors, radii, spacing } from '@/components/ui/theme';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useUIString } from '@/hooks/useUIString';
+import { SPRING } from '@/lib/motion';
 
 const MOTIVATIONS = [
   { emoji: '🌍', label: 'Travel' },
@@ -18,6 +29,53 @@ const MOTIVATIONS = [
   { emoji: '🎯', label: 'Just for fun' },
 ] as const;
 
+function MotivationCard({
+  emoji,
+  label,
+  isSelected,
+  onPress,
+  mountDelay,
+}: {
+  emoji: string;
+  label: string;
+  isSelected: boolean;
+  onPress: () => void;
+  mountDelay: number;
+}) {
+  const reduced = useReducedMotion();
+  const mountStyle = useAnimatedMount({ translateY: 20, delay: mountDelay });
+  const pressScale = useSharedValue(1);
+
+  const handlePressIn = useCallback(() => {
+    if (reduced) return;
+    pressScale.value = withSpring(0.95, SPRING.snappy);
+  }, [pressScale, reduced]);
+
+  const handlePressOut = useCallback(() => {
+    if (reduced) return;
+    cancelAnimation(pressScale);
+    pressScale.value = withSpring(1, SPRING.button);
+  }, [pressScale, reduced]);
+
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }],
+  }));
+
+  return (
+    <Animated.View style={[mountStyle, pressStyle, styles.cardWrap]}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[styles.card, isSelected && styles.cardSelected]}
+      >
+        <Text style={styles.emoji}>{emoji}</Text>
+        <Text variant="bodyBold">{label}</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 export default function MotivationScreen() {
   const router = useRouter();
   const { t } = useUIString();
@@ -25,17 +83,12 @@ export default function MotivationScreen() {
 
   const toggleMotivation = (label: string) => {
     setSelected((prev) =>
-      prev.includes(label)
-        ? prev.filter((item) => item !== label)
-        : [...prev, label]
+      prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label]
     );
   };
 
   const handleContinue = async () => {
-    await AsyncStorage.setItem(
-      'linguamold.learning_motivation',
-      JSON.stringify(selected)
-    );
+    await AsyncStorage.setItem('linguamold.learning_motivation', JSON.stringify(selected));
     router.push('/(onboarding)/daily-goal');
   };
 
@@ -54,22 +107,16 @@ export default function MotivationScreen() {
         </Text>
 
         <View style={styles.grid}>
-          {MOTIVATIONS.map((item) => {
-            const isSelected = selected.includes(item.label);
-            return (
-              <Pressable
-                key={item.label}
-                onPress={() => toggleMotivation(item.label)}
-                style={[
-                  styles.card,
-                  isSelected && styles.cardSelected,
-                ]}
-              >
-                <Text style={styles.emoji}>{item.emoji}</Text>
-                <Text variant="bodyBold">{item.label}</Text>
-              </Pressable>
-            );
-          })}
+          {MOTIVATIONS.map((item, i) => (
+            <MotivationCard
+              key={item.label}
+              emoji={item.emoji}
+              label={item.label}
+              isSelected={selected.includes(item.label)}
+              onPress={() => toggleMotivation(item.label)}
+              mountDelay={i * 100}
+            />
+          ))}
         </View>
       </ScrollView>
 
@@ -104,8 +151,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.md,
   },
-  card: {
+  cardWrap: {
     width: '47%',
+  },
+  card: {
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.md,
     borderRadius: radii.md,

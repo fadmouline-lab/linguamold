@@ -1,9 +1,19 @@
+import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/components/ui/theme';
-
-// TODO(motion): ring fill animation, goal completion celebration
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { success } from '@/lib/haptics';
+import { SPRING, TIMING } from '@/lib/motion';
 
 interface DailyGoalRingProps {
   currentMinutes: number;
@@ -17,13 +27,54 @@ const BORDER_WIDTH = 5;
 const COMPACT_BORDER_WIDTH = 3;
 
 export function DailyGoalRing({ currentMinutes, goalMinutes, compact = false }: DailyGoalRingProps) {
+  const reduced = useReducedMotion();
   const size = compact ? COMPACT_SIZE : FULL_SIZE;
   const borderWidth = compact ? COMPACT_BORDER_WIDTH : BORDER_WIDTH;
   const progress = Math.min(currentMinutes / Math.max(goalMinutes, 1), 1);
   const goalReached = currentMinutes >= goalMinutes;
 
+  // Animated fill width (0 → size * progress over 600ms)
+  const fillWidth = useSharedValue(0);
+
+  // Ring scale pulse on goal reached
+  const ringScale = useSharedValue(1);
+
+  // Track if we've already fired the goal celebration
+  const celebratedRef = useRef(false);
+
+  useEffect(() => {
+    const targetWidth = size * progress;
+
+    if (reduced) {
+      fillWidth.value = targetWidth;
+      return;
+    }
+
+    fillWidth.value = withTiming(targetWidth, { duration: TIMING.slow });
+
+    return () => cancelAnimation(fillWidth);
+  }, [size, progress, reduced, fillWidth]);
+
+  useEffect(() => {
+    if (!goalReached || reduced || celebratedRef.current) return;
+    celebratedRef.current = true;
+
+    ringScale.value = withSequence(
+      withSpring(1.1, SPRING.celebration),
+      withSpring(1.0, SPRING.card),
+    );
+    success();
+
+    return () => cancelAnimation(ringScale);
+  }, [goalReached, reduced, ringScale]);
+
+  const fillStyle = useAnimatedStyle(() => ({ width: fillWidth.value }));
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: ringScale.value }],
+  }));
+
   return (
-    <View style={[styles.container, { width: size, height: size }]}>
+    <Animated.View style={[styles.container, { width: size, height: size }, ringStyle]}>
       <View
         style={[
           styles.ring,
@@ -36,15 +87,15 @@ export function DailyGoalRing({ currentMinutes, goalMinutes, compact = false }: 
           },
         ]}
       />
-      <View
+      <Animated.View
         style={[
           styles.fill,
           {
-            width: size * progress,
             height: size,
             borderRadius: size / 2,
             backgroundColor: colors.primaryLight,
           },
+          fillStyle,
         ]}
       />
       {!compact && (
@@ -54,7 +105,7 @@ export function DailyGoalRing({ currentMinutes, goalMinutes, compact = false }: 
           </Text>
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
