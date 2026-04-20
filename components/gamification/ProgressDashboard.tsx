@@ -1,10 +1,21 @@
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { Text } from '@/components/ui/Text';
 import { colors, radii, shadows, spacing } from '@/components/ui/theme';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
+import { useCountUp } from '@/hooks/useCountUp';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useUIString } from '@/hooks/useUIString';
-
-// TODO(motion): animated progress bar fill on mount, count-up numbers
+import { SPRING, TIMING } from '@/lib/motion';
 
 export interface ProgressDashboardProps {
   totalWords: number;
@@ -25,6 +36,45 @@ function formatTime(minutes: number): string {
   return remainder > 0 ? `${hours}h ${remainder}m` : `${hours}h`;
 }
 
+function AnimatedWeakWord({
+  word,
+  mistakeCount,
+  index,
+  onPractice,
+}: {
+  word: string;
+  mistakeCount: number;
+  index: number;
+  onPractice?: (word: string) => void;
+}) {
+  const { t } = useUIString();
+  const mountStyle = useAnimatedMount({ translateY: 10, delay: index * 100 });
+
+  return (
+    <Animated.View style={[styles.weakRow, mountStyle]}>
+      <View style={styles.weakWordInfo}>
+        <Text variant="bodyBold">{word}</Text>
+        <View style={styles.mistakeBadge}>
+          <Text variant="micro" color={colors.error}>
+            {mistakeCount}x
+          </Text>
+        </View>
+      </View>
+      {onPractice ? (
+        <Pressable
+          onPress={() => onPractice(word)}
+          style={styles.practiceButton}
+          accessibilityRole="button"
+        >
+          <Text variant="label" color={colors.primary}>
+            {t('profile.practice')}
+          </Text>
+        </Pressable>
+      ) : null}
+    </Animated.View>
+  );
+}
+
 export function ProgressDashboard({
   totalWords,
   accuracyPct,
@@ -37,8 +87,41 @@ export function ProgressDashboard({
   onPracticeWord,
 }: ProgressDashboardProps) {
   const { t } = useUIString();
+  const reduced = useReducedMotion();
 
+  // Animated count-up for all stats (800ms)
+  const wordsDisplay      = useCountUp(totalWords,       TIMING.slow);
+  const accuracyDisplay   = useCountUp(accuracyPct,      TIMING.slow);
+  const levelDisplay      = useCountUp(level,            TIMING.slow);
+  const lessonsDisplay    = useCountUp(lessonsCompleted, TIMING.slow);
+  const totalXpDisplay    = useCountUp(totalXp,          TIMING.slow);
+
+  // Animated XP progress bar (600ms)
   const xpProgress = totalXp > 0 ? Math.min(1, totalXp / (totalXp + xpToNext)) : 0;
+  const barWidth = useSharedValue(0);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useEffect(() => {
+    if (containerWidth <= 0) return;
+    if (reduced) {
+      barWidth.value = containerWidth * xpProgress;
+      return;
+    }
+    barWidth.value = withTiming(containerWidth * xpProgress, { duration: 600 });
+    return () => cancelAnimation(barWidth);
+  }, [containerWidth, xpProgress, reduced, barWidth]);
+
+  const barStyle = useAnimatedStyle(() => ({ width: barWidth.value }));
+
+  // Stats grid stagger entrance
+  const statDelay = (i: number) => (reduced ? 0 : i * 80);
+  const s0 = useAnimatedMount({ translateY: 12, delay: statDelay(0) });
+  const s1 = useAnimatedMount({ translateY: 12, delay: statDelay(1) });
+  const s2 = useAnimatedMount({ translateY: 12, delay: statDelay(2) });
+  const s3 = useAnimatedMount({ translateY: 12, delay: statDelay(3) });
+  const s4 = useAnimatedMount({ translateY: 12, delay: statDelay(4) });
+  const s5 = useAnimatedMount({ translateY: 12, delay: statDelay(5) });
+  const statStyles = [s0, s1, s2, s3, s4, s5];
 
   return (
     <View style={styles.container}>
@@ -48,39 +131,42 @@ export function ProgressDashboard({
 
       {/* Stats grid */}
       <View style={styles.grid}>
-        <View style={styles.statCard}>
-          <Text variant="score" style={styles.statValue}>{totalWords}</Text>
+        <Animated.View style={[styles.statCard, statStyles[0]]}>
+          <Text variant="score" style={styles.statValue}>{wordsDisplay}</Text>
           <Text variant="caption">Words learned</Text>
-        </View>
+        </Animated.View>
 
-        <View style={styles.statCard}>
-          <Text variant="score" style={styles.statValue}>{accuracyPct}%</Text>
+        <Animated.View style={[styles.statCard, statStyles[1]]}>
+          <Text variant="score" style={styles.statValue}>{accuracyDisplay}%</Text>
           <Text variant="caption">Accuracy</Text>
-        </View>
+        </Animated.View>
 
-        <View style={styles.statCard}>
-          <Text variant="score" style={styles.statValue}>{level}</Text>
+        <Animated.View style={[styles.statCard, statStyles[2]]}>
+          <Text variant="score" style={styles.statValue}>{levelDisplay}</Text>
           <Text variant="caption">Level</Text>
-          <View style={styles.progressBarOuter}>
-            <View style={[styles.progressBarInner, { width: `${xpProgress * 100}%` }]} />
+          <View
+            style={styles.progressBarOuter}
+            onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
+          >
+            <Animated.View style={[styles.progressBarInner, barStyle]} />
           </View>
           <Text variant="micro">{xpToNext} XP to next</Text>
-        </View>
+        </Animated.View>
 
-        <View style={styles.statCard}>
-          <Text variant="score" style={styles.statValue}>{lessonsCompleted}</Text>
+        <Animated.View style={[styles.statCard, statStyles[3]]}>
+          <Text variant="score" style={styles.statValue}>{lessonsDisplay}</Text>
           <Text variant="caption">Lessons</Text>
-        </View>
+        </Animated.View>
 
-        <View style={styles.statCard}>
+        <Animated.View style={[styles.statCard, statStyles[4]]}>
           <Text variant="score" style={styles.statValue}>{formatTime(minutesPracticed)}</Text>
           <Text variant="caption">Time spent</Text>
-        </View>
+        </Animated.View>
 
-        <View style={styles.statCard}>
-          <Text variant="score" style={styles.statValue}>{totalXp}</Text>
+        <Animated.View style={[styles.statCard, statStyles[5]]}>
+          <Text variant="score" style={styles.statValue}>{totalXpDisplay}</Text>
           <Text variant="caption">Total XP</Text>
-        </View>
+        </Animated.View>
       </View>
 
       {/* Weak words section */}
@@ -90,28 +176,14 @@ export function ProgressDashboard({
 
       {weakWords.length > 0 ? (
         <View style={styles.weakList}>
-          {weakWords.slice(0, 5).map((item) => (
-            <View key={item.word} style={styles.weakRow}>
-              <View style={styles.weakWordInfo}>
-                <Text variant="bodyBold">{item.word}</Text>
-                <View style={styles.mistakeBadge}>
-                  <Text variant="micro" color={colors.error}>
-                    {item.mistakeCount}x
-                  </Text>
-                </View>
-              </View>
-              {onPracticeWord ? (
-                <Pressable
-                  onPress={() => onPracticeWord(item.word)}
-                  style={styles.practiceButton}
-                  accessibilityRole="button"
-                >
-                  <Text variant="label" color={colors.primary}>
-                    {t('profile.practice')}
-                  </Text>
-                </Pressable>
-              ) : null}
-            </View>
+          {weakWords.slice(0, 5).map((item, i) => (
+            <AnimatedWeakWord
+              key={item.word}
+              word={item.word}
+              mistakeCount={item.mistakeCount}
+              index={i}
+              onPractice={onPracticeWord}
+            />
           ))}
         </View>
       ) : (

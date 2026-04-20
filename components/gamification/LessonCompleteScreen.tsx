@@ -13,9 +13,11 @@ import Animated, {
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { colors, spacing } from '@/components/ui/theme';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { useCountUp } from '@/hooks/useCountUp';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useUIString } from '@/hooks/useUIString';
-import { TIMING } from '@/lib/motion';
+import { SPRING, TIMING } from '@/lib/motion';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -93,22 +95,28 @@ function ConfettiParticle({ config }: ConfettiParticleProps) {
 interface AnimatedStarProps {
   filled: boolean;
   delay: number;
+  reduced: boolean;
 }
 
-function AnimatedStar({ filled, delay }: AnimatedStarProps) {
-  const scale = useSharedValue(0);
-  const opacity = useSharedValue(0);
+function AnimatedStar({ filled, delay, reduced }: AnimatedStarProps) {
+  const scale = useSharedValue(reduced ? 1 : 0);
+  const opacity = useSharedValue(reduced ? 1 : 0);
 
   useEffect(() => {
+    if (reduced) return;
     scale.value = withDelay(
       delay,
       withSequence(
-        withSpring(1.3, { damping: 8, stiffness: 120 }),
-        withSpring(1.0, { damping: 15, stiffness: 150 })
-      )
+        withSpring(1.3, SPRING.celebration),
+        withSpring(1.0, SPRING.card),
+      ),
     );
     opacity.value = withDelay(delay, withTiming(1, { duration: 150 }));
-  }, [delay, opacity, scale]);
+    return () => {
+      cancelAnimation(scale);
+      cancelAnimation(opacity);
+    };
+  }, [delay, opacity, reduced, scale]);
 
   const style = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -153,18 +161,29 @@ export function LessonCompleteScreen({
   dailyGoalCurrent,
 }: LessonCompleteScreenProps) {
   const { t } = useUIString();
+  const reduced = useReducedMotion();
   const stars = scorePct < 60 ? 1 : scorePct < 90 ? 2 : 3;
-  const showConfetti = scorePct >= 90;
+  const showConfetti = scorePct >= 90 && !reduced;
   const particles = useRef(makeParticles()).current;
   const xpDisplay = useCountUp(xpEarned, TIMING.slow, 400);
 
+  // Staggered section reveals (base delay 800ms = after stars + XP settle)
+  const section1Style = useAnimatedMount({ translateY: 20, delay: reduced ? 0 : 800 });
+  const section2Style = useAnimatedMount({ translateY: 20, delay: reduced ? 0 : 1000 });
+  const section3Style = useAnimatedMount({ translateY: 20, delay: reduced ? 0 : 1200 });
+
   // Title slides in
-  const titleY = useSharedValue(30);
-  const titleOpacity = useSharedValue(0);
+  const titleY = useSharedValue(reduced ? 0 : 30);
+  const titleOpacity = useSharedValue(reduced ? 1 : 0);
   useEffect(() => {
-    titleY.value = withSpring(0, { damping: 15, stiffness: 100 });
+    if (reduced) return;
+    titleY.value = withSpring(0, SPRING.card);
     titleOpacity.value = withTiming(1, { duration: 400 });
-  }, [titleOpacity, titleY]);
+    return () => {
+      cancelAnimation(titleY);
+      cancelAnimation(titleOpacity);
+    };
+  }, [reduced, titleOpacity, titleY]);
 
   const titleStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: titleY.value }],
@@ -172,10 +191,12 @@ export function LessonCompleteScreen({
   }));
 
   // Continue button slides in last
-  const btnOpacity = useSharedValue(0);
+  const btnOpacity = useSharedValue(reduced ? 1 : 0);
   useEffect(() => {
+    if (reduced) return;
     btnOpacity.value = withDelay(1000, withTiming(1, { duration: 400 }));
-  }, [btnOpacity]);
+    return () => cancelAnimation(btnOpacity);
+  }, [btnOpacity, reduced]);
   const btnStyle = useAnimatedStyle(() => ({ opacity: btnOpacity.value }));
 
   return (
@@ -195,7 +216,7 @@ export function LessonCompleteScreen({
 
         <View style={styles.stars}>
           {[1, 2, 3].map((n) => (
-            <AnimatedStar key={n} filled={n <= stars} delay={200 + n * 150} />
+            <AnimatedStar key={n} filled={n <= stars} delay={200 + n * 150} reduced={reduced} />
           ))}
         </View>
 
@@ -208,9 +229,8 @@ export function LessonCompleteScreen({
           {streakKept ? `  ·  🔥 ${t('gamify.streak')}` : ''}
         </Text>
 
-        {/* TODO(motion): section reveal animations (staggered slide-up) */}
         {wordsLearned && wordsLearned.length > 0 && (
-          <View style={styles.section}>
+          <Animated.View style={[styles.section, section1Style]}>
             <Text variant="label" style={styles.sectionTitle}>
               {t('lesson.complete_words_learned')}
             </Text>
@@ -219,11 +239,11 @@ export function LessonCompleteScreen({
                 {w.word} — {w.translation}
               </Text>
             ))}
-          </View>
+          </Animated.View>
         )}
 
         {wordsToReview && wordsToReview.length > 0 && (
-          <View style={styles.section}>
+          <Animated.View style={[styles.section, section2Style]}>
             <Text variant="label" style={styles.sectionTitleError}>
               {t('lesson.complete_review')}
             </Text>
@@ -232,15 +252,15 @@ export function LessonCompleteScreen({
                 {w.word} — {w.translation}
               </Text>
             ))}
-          </View>
+          </Animated.View>
         )}
 
         {nextLessonTitle && (
-          <View style={styles.section}>
+          <Animated.View style={[styles.section, section3Style]}>
             <Text variant="caption" style={styles.nextUp}>
               {t('lesson.complete_next', { title: nextLessonTitle })}
             </Text>
-          </View>
+          </Animated.View>
         )}
 
         <View style={styles.spacer} />
