@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 
 import type { UserRole } from '@/stores/authStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useUiStringStore } from '@/stores/uiStringStore';
 import { supabase } from '@/lib/supabase';
 
 export function useAuth() {
@@ -132,6 +133,7 @@ export function useAuth() {
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
+    useUiStringStore.getState().clear();
     reset();
   }, [reset]);
 

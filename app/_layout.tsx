@@ -8,24 +8,53 @@ import { Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { AppStringsBootstrap } from '@/components/providers/AppStringsBootstrap';
 import { OfflineBanner } from '@/components/common/OfflineBanner';
 import { ToastQueue } from '@/components/common/ToastQueue';
 import { colors } from '@/components/ui/theme';
+
+const FONT_MAP = {
+  'CabinetGrotesk-ExtraBold': require('../assets/fonts/CabinetGrotesk-ExtraBold.ttf'),
+  'CabinetGrotesk-Bold': require('../assets/fonts/CabinetGrotesk-Bold.ttf'),
+  'CabinetGrotesk-Medium': require('../assets/fonts/CabinetGrotesk-Medium.ttf'),
+  'DMSans-Regular': require('../assets/fonts/DMSans-Regular.ttf'),
+  'DMSans-Medium': require('../assets/fonts/DMSans-Medium.ttf'),
+  'DMSans-SemiBold': require('../assets/fonts/DMSans-SemiBold.ttf'),
+  'DMSans-Bold': require('../assets/fonts/DMSans-Bold.ttf'),
+} as const;
 
 export default function RootLayout() {
   const [online, setOnline] = useState(true);
   const [fontsLoaded, setFontsLoaded] = useState(false);
 
   useEffect(() => {
-    Font.loadAsync({
-      'CabinetGrotesk-ExtraBold': require('../assets/fonts/CabinetGrotesk-ExtraBold.ttf'),
-      'CabinetGrotesk-Bold': require('../assets/fonts/CabinetGrotesk-Bold.ttf'),
-      'CabinetGrotesk-Medium': require('../assets/fonts/CabinetGrotesk-Medium.ttf'),
-      'DMSans-Regular': require('../assets/fonts/DMSans-Regular.ttf'),
-      'DMSans-Medium': require('../assets/fonts/DMSans-Medium.ttf'),
-      'DMSans-SemiBold': require('../assets/fonts/DMSans-SemiBold.ttf'),
-      'DMSans-Bold': require('../assets/fonts/DMSans-Bold.ttf'),
-    }).then(() => setFontsLoaded(true));
+    let cancelled = false;
+    const timeoutMs = Platform.OS === 'web' ? 8000 : 30000;
+
+    const loadFonts = async () => {
+      try {
+        await Promise.race([
+          Font.loadAsync(FONT_MAP),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('font_load_timeout')), timeoutMs)
+          ),
+        ]);
+      } catch (e) {
+        if (__DEV__) {
+          console.warn(
+            '[LinguaMold] Font.loadAsync failed or timed out; continuing with system fonts where needed.',
+            e
+          );
+        }
+      } finally {
+        if (!cancelled) setFontsLoaded(true);
+      }
+    };
+
+    void loadFonts();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -43,7 +72,10 @@ export default function RootLayout() {
     let cancelled = false;
     const check = async () => {
       try {
-        await fetch('https://www.google.com/generate_204', { method: 'HEAD', cache: 'no-store' });
+        await fetch('https://www.google.com/generate_204', {
+          method: 'HEAD',
+          cache: 'no-store',
+        });
         if (!cancelled) setOnline(true);
       } catch {
         if (!cancelled) setOnline(false);
@@ -64,22 +96,24 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <OfflineBanner visible={!online} message="Pas de connexion internet" />
-        <ToastQueue />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.background },
-          }}
-        >
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(onboarding)" />
-          <Stack.Screen name="(main)" />
-          <Stack.Screen name="(admin)" />
-          <Stack.Screen name="lesson/[lessonId]" options={{ gestureEnabled: false }} />
-        </Stack>
+        <AppStringsBootstrap>
+          <StatusBar style="dark" />
+          <OfflineBanner visible={!online} message="Pas de connexion internet" />
+          <ToastQueue />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.background },
+            }}
+          >
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(onboarding)" />
+            <Stack.Screen name="(main)" />
+            <Stack.Screen name="(admin)" />
+            <Stack.Screen name="lesson/[lessonId]" options={{ gestureEnabled: false }} />
+          </Stack>
+        </AppStringsBootstrap>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

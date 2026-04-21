@@ -11,6 +11,15 @@ import { useUIString } from '@/hooks/useUIString';
 import type { ModuleWithProgress } from '@/hooks/useModules';
 import { supabase } from '@/lib/supabase';
 
+function moduleRingProgress(m: ModuleWithProgress): number {
+  const pct = m.progress?.completion_pct;
+  if (typeof pct === 'number' && Number.isFinite(pct)) {
+    return Math.max(0, Math.min(1, pct / 100));
+  }
+  if (m.progress?.status === 'completed') return 1;
+  return 0;
+}
+
 export default function BrowseScreen() {
   const { t } = useUIString();
   const { modules, loading } = useModules();
@@ -90,7 +99,7 @@ export default function BrowseScreen() {
                       onPress={() => open(m)}
                       style={[styles.card, locked && styles.cardLocked]}
                     >
-                      <ProgressRing size={56} progress={0.2} />
+                      <ProgressRing size={56} progress={moduleRingProgress(m)} />
                       <Text variant="bodyBold" numberOfLines={2}>
                         {m.title_al}
                       </Text>

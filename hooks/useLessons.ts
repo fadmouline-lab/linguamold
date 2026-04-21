@@ -4,6 +4,10 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import type { Lesson, UserLessonProgress } from '@/types/index';
 
+function isLessonCompleted(p: UserLessonProgress | undefined | null) {
+  return String(p?.status ?? '').toLowerCase() === 'completed';
+}
+
 export interface LessonWithProgress extends Lesson {
   progress?: UserLessonProgress | null;
   locked: boolean;
@@ -41,9 +45,7 @@ export function useLessons(moduleId: string | null) {
       }
       const merged: LessonWithProgress[] = base.map((l, idx) => {
         const prev = base[idx - 1];
-        const prevDone = prev
-          ? progMap.get(prev.id)?.status === 'completed'
-          : true;
+        const prevDone = prev ? isLessonCompleted(progMap.get(prev.id)) : true;
         const locked = idx > 0 && !prevDone;
         return {
           ...l,

@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { Text } from '@/components/ui/Text';
 import { colors, radii, spacing } from '@/components/ui/theme';
+import { tap } from '@/lib/haptics';
 
 export type OptionState = 'idle' | 'selected' | 'correct' | 'wrong';
 
@@ -27,8 +27,8 @@ export function OptionButton({
     <Pressable
       accessibilityRole="button"
       disabled={disabled}
-      onPress={async () => {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onPress={() => {
+        tap();
         onPress();
       }}
       style={({ pressed }) => [

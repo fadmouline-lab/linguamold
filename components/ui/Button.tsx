@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useCallback } from 'react';
 import {
   ActivityIndicator,
@@ -15,6 +14,7 @@ import Animated, {
 
 import { Text } from '@/components/ui/Text';
 import { button3D, colors, radii, spacing } from '@/components/ui/theme';
+import { tap } from '@/lib/haptics';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'correct' | 'wrong';
 
@@ -81,7 +81,7 @@ export function Button({
   const handlePress = useCallback(
     (e: Parameters<NonNullable<PressableProps['onPress']>>[0]) => {
       if (haptic && !disabled && !loading) {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        tap();
       }
       onPress?.(e);
     },

@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, Pressable, StyleSheet, View } from 'react-native';
@@ -24,6 +23,7 @@ import { colors, spacing } from '@/components/ui/theme';
 import { useExerciseEngine } from '@/hooks/useExerciseEngine';
 import { useHearts } from '@/hooks/useHearts';
 import { useUIString } from '@/hooks/useUIString';
+import { success as hapticSuccess, error as hapticError } from '@/lib/haptics';
 import { getMoldComponent } from '@/lib/mold-registry';
 import { toMoldExercise } from '@/lib/exercise-mapper';
 import { playSound, preloadSounds, unloadSounds } from '@/lib/sounds';
@@ -146,7 +146,7 @@ export default function LessonScreen() {
       if (isCorrect) {
         setXpBurst(true);
         setTimeout(() => setXpBurst(false), 900);
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        hapticSuccess();
         if (soundEnabled) {
           playSound('correct');
           const newStreak = useLessonStore.getState().comboStreak;
@@ -155,7 +155,7 @@ export default function LessonScreen() {
           else if (newStreak === 3) playSound('combo3');
         }
       } else {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        hapticError();
         if (soundEnabled) playSound('wrong');
       }
       setHintsUsed(0);

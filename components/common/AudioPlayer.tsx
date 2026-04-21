@@ -1,9 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 import { colors, spacing } from '@/components/ui/theme';
 import { playAudio, stopAudio } from '@/lib/audio';
+
+const isWeb = Platform.OS === 'web';
 
 export interface AudioPlayerProps {
   audioUrl: string | null | undefined;
@@ -22,7 +30,8 @@ export function AudioPlayer({
   useEffect(() => {
     let alive = true;
     const run = async () => {
-      if (!autoPlay || !audioUrl) return;
+      // Web: autoplay is unreliable (browser policies); user must tap.
+      if (!autoPlay || !audioUrl || isWeb) return;
       setLoading(true);
       setError(false);
       try {
@@ -58,7 +67,9 @@ export function AudioPlayer({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Play audio"
+      accessibilityLabel={
+        isWeb ? 'Lecture audio (appuyez pour jouer)' : 'Play audio'
+      }
       onPress={() => void onPress()}
       disabled={disabled}
       style={[styles.btn, { width: size, height: size, borderRadius: size / 2 }]}

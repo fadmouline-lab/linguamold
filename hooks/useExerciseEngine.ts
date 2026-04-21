@@ -16,10 +16,17 @@ import { useLessonStore } from '@/stores/lessonStore';
 import type { ExerciseRow } from '@/types/index';
 import { useUiStringStore } from '@/stores/uiStringStore';
 import { APP_STRINGS_FALLBACK } from '@/lib/app-strings-fallback';
+import { APP_STRINGS_FR_PRIORITY } from '@/lib/app-strings-fr-priority';
 
 /** Offline-safe UUID generation */
 function generateId(): string {
   return crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
+}
+
+function devLogSupabase(context: string, err: { message?: string } | null | undefined) {
+  if (__DEV__ && err?.message) {
+    console.warn(`[useExerciseEngine] ${context}:`, err.message);
+  }
 }
 
 export function useExerciseEngine(placementMode = false) {
@@ -28,7 +35,11 @@ export function useExerciseEngine(placementMode = false) {
   const lessonStartedAtRef = useRef<string | null>(null);
   const tStatic = useCallback(
     (key: string, vars?: Record<string, string | number>): string => {
-      const raw = strings[key] ?? APP_STRINGS_FALLBACK[key] ?? key;
+      const raw =
+        strings[key] ??
+        APP_STRINGS_FR_PRIORITY[key] ??
+        APP_STRINGS_FALLBACK[key] ??
+        key;
       if (!vars) return raw;
       return raw.replace(/\{\{(\w+)\}\}/g, (_, k: string) => String(vars[k] ?? `{{${k}}}`));
     },
@@ -75,7 +86,8 @@ export function useExerciseEngine(placementMode = false) {
           .order('display_order', { ascending: true });
         if (error) throw error;
         st.setExercises((data ?? []) as ExerciseRow[]);
-      } catch {
+      } catch (e) {
+        devLogSupabase('loadLesson', e as { message?: string });
         useLessonStore.getState().setExercises([]);
       } finally {
         useLessonStore.getState().setLoading(false);
@@ -122,13 +134,14 @@ export function useExerciseEngine(placementMode = false) {
         st.setLastWasWrong(false);
 
         if (!isPractice) {
-          await supabase.from('user_xp_log').insert({
+          const { error: xpErr } = await supabase.from('user_xp_log').insert({
             id: generateId(),
             user_id: userId,
             xp_amount: xp,
             source: 'exercise',
             reference_id: ex.id,
           });
+          devLogSupabase('user_xp_log insert (correct)', xpErr);
         }
       } else {
         st.resetCombo();
@@ -139,18 +152,19 @@ export function useExerciseEngine(placementMode = false) {
         if (!placementMode && !isPractice) {
           const nextHearts = Math.max(0, h - 1);
           st.setHearts(nextHearts);
-          await supabase
+          const { error: heartErr } = await supabase
             .from('user_profiles')
             .update({
               hearts: nextHearts,
               updated_at: new Date().toISOString(),
             })
             .eq('id', userId);
+          devLogSupabase('user_profiles hearts update', heartErr);
         }
       }
 
       if (!isPractice) {
-        await supabase.from('user_exercise_attempts').insert({
+        const { error: attErr } = await supabase.from('user_exercise_attempts').insert({
           user_id: userId,
           exercise_id: ex.id,
           is_correct: isCorrect,
@@ -159,6 +173,7 @@ export function useExerciseEngine(placementMode = false) {
           xp_earned: xp,
           hints_used: exerciseHints,
         });
+        devLogSupabase('user_exercise_attempts insert', attErr);
       }
 
       const nextAnswers = [...ans, payload];
@@ -186,13 +201,14 @@ export function useExerciseEngine(placementMode = false) {
       // 3rd+ skip costs 1 heart
       if (skips >= 2 && !isPractice) {
         const nextHearts = Math.max(0, h - 1);
-        await supabase
+        const { error: heartErr } = await supabase
           .from('user_profiles')
           .update({
             hearts: nextHearts,
             updated_at: new Date().toISOString(),
           })
           .eq('id', userId);
+        devLogSupabase('user_profiles hearts update (skip)', heartErr);
         st.setHearts(nextHearts);
       }
 
@@ -214,7 +230,7 @@ export function useExerciseEngine(placementMode = false) {
 
       // Log to user_exercise_attempts
       if (!isPractice) {
-        await supabase.from('user_exercise_attempts').insert({
+        const { error: skipAttErr } = await supabase.from('user_exercise_attempts').insert({
           user_id: userId,
           exercise_id: ex.id,
           is_correct: false,
@@ -222,7 +238,9 @@ export function useExerciseEngine(placementMode = false) {
           user_answer: null,
           time_spent_ms: 0,
           xp_earned: 0,
+          hints_used: 0,
         });
+        devLogSupabase('user_exercise_attempts insert (skip)', skipAttErr);
       }
 
       // Update score
@@ -265,10 +283,14 @@ export function useExerciseEngine(placementMode = false) {
     if (!afterState.isComplete) return;
 
     // Lesson complete — run completion logic
-    if (!userId || !exs.length) return;
+    if (!userId) return;
     if (isPractice) return; // Practice mode skips XP and progress logging
 
-    const lessonId = exs[0]?.lesson_id;
+    const lessonId =
+      afterState.lessonId ??
+      afterState.exercises[0]?.lesson_id ??
+      exs[0]?.lesson_id;
+    if (!lessonId) return;
     const allCorrect = ans.every((a) => a.isCorrect);
     const xpBase = XP_LESSON_COMPLETE + (allCorrect ? XP_PERFECT_LESSON : 0);
 
@@ -283,7 +305,7 @@ export function useExerciseEngine(placementMode = false) {
     const existingStartedAt = (existingLesson as { started_at: string | null; attempts: number } | null)?.started_at;
     const existingAttempts = (existingLesson as { started_at: string | null; attempts: number } | null)?.attempts ?? 0;
 
-    await supabase.from('user_lesson_progress').upsert(
+    const { error: ulpErr } = await supabase.from('user_lesson_progress').upsert(
       {
         user_id: userId,
         lesson_id: lessonId,
@@ -297,6 +319,7 @@ export function useExerciseEngine(placementMode = false) {
       },
       { onConflict: 'user_id,lesson_id' }
     );
+    devLogSupabase('user_lesson_progress upsert', ulpErr);
 
     if (lessonId) {
       const { data: lessonRow } = await supabase
@@ -339,7 +362,7 @@ export function useExerciseEngine(placementMode = false) {
         const startedAt =
           (existing as { started_at: string | null } | null)?.started_at ??
           nowIso;
-        await supabase.from('user_module_progress').upsert(
+        const { error: umpErr } = await supabase.from('user_module_progress').upsert(
           {
             user_id: userId,
             module_id: moduleId,
@@ -351,16 +374,18 @@ export function useExerciseEngine(placementMode = false) {
           },
           { onConflict: 'user_id,module_id' }
         );
+        devLogSupabase('user_module_progress upsert', umpErr);
       }
     }
 
-    await supabase.from('user_xp_log').insert({
+    const { error: lessonXpErr } = await supabase.from('user_xp_log').insert({
       id: generateId(),
       user_id: userId,
       xp_amount: xpBase,
       source: allCorrect ? 'perfect_lesson' : 'lesson_complete',
       reference_id: lessonId,
     });
+    devLogSupabase('user_xp_log insert (lesson complete)', lessonXpErr);
 
     const { data: prof } = await supabase
       .from('user_profiles')
@@ -368,13 +393,14 @@ export function useExerciseEngine(placementMode = false) {
       .eq('id', userId)
       .maybeSingle();
     const cur = (prof as { total_xp: number } | null)?.total_xp ?? 0;
-    await supabase
+    const { error: profXpErr } = await supabase
       .from('user_profiles')
       .update({
         total_xp: cur + xpBase,
         updated_at: new Date().toISOString(),
       })
       .eq('id', userId);
+    devLogSupabase('user_profiles total_xp update', profXpErr);
     const newTotal = cur + xpBase;
     const newLevel = Math.floor(newTotal / LEVEL_XP_STEP) + 1;
     const prevLevel = useGamificationStore.getState().previousLevel;

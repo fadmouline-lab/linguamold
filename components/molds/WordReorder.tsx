@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeOut, LinearTransition, ZoomIn } from 'react-native-reanimated';
 
 import { AudioPlayer } from '@/components/common/AudioPlayer';
@@ -38,6 +38,7 @@ export function WordReorder({
   const [correct, setCorrect] = useState(false);
 
   const words = content.scrambled_words_ll;
+  const chipLayout = Platform.OS === 'web' ? undefined : LinearTransition.springify();
 
   const orderIdx = useMemo(() => slots, [slots]);
 
@@ -99,7 +100,7 @@ export function WordReorder({
             key={`s-${idx}`}
             entering={ZoomIn.duration(200)}
             exiting={FadeOut.duration(150)}
-            layout={LinearTransition.springify()}
+            layout={chipLayout}
           >
             <Pressable onPress={() => tapSlot(pos)} style={styles.chip}>
               <Text variant="bodyBold">{words[idx]}</Text>
@@ -112,7 +113,7 @@ export function WordReorder({
           <Animated.View
             key={`p-${idx}`}
             exiting={FadeOut.duration(150)}
-            layout={LinearTransition.springify()}
+            layout={chipLayout}
           >
             <Pressable onPress={() => tapPool(pos)} style={styles.chip}>
               <Text variant="body">{words[idx]}</Text>

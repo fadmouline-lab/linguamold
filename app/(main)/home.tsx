@@ -31,12 +31,27 @@ import { useAdminStore } from '@/stores/adminStore';
 import type { ModuleWithProgress } from '@/hooks/useModules';
 import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/lib/supabase';
+import type { UserLessonProgress } from '@/types/index';
+
+/** Best lesson score as 0–100 for list rows (Supabase may return decimals as strings). */
+function lessonBestScorePercent(
+  progress: UserLessonProgress | null | undefined
+): number | null {
+  if (!progress) return null;
+  const raw = progress.best_score ?? progress.score;
+  if (raw == null) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  return Math.round(Math.min(100, Math.max(0, n)));
+}
 
 export default function HomeScreen() {
   const { t } = useUIString();
   const { modules, loading, error, reload } = useModules();
   const [selected, setSelected] = useState<ModuleWithProgress | null>(null);
-  const { lessons, loading: lessonsLoading } = useLessons(selected?.id ?? null);
+  const { lessons, loading: lessonsLoading, reload: reloadLessons } = useLessons(
+    selected?.id ?? null
+  );
   const gems = useGamificationStore((s) => s.gems);
   const hearts = useGamificationStore((s) => s.hearts);
   const setFromProfile = useGamificationStore((s) => s.setFromProfile);
@@ -123,7 +138,8 @@ export default function HomeScreen() {
     useCallback(() => {
       void reload();
       void refreshProfile();
-    }, [reload, refreshProfile])
+      void reloadLessons();
+    }, [reload, refreshProfile, reloadLessons])
   );
 
   if (showWelcomeBack) {
@@ -199,7 +215,13 @@ export default function HomeScreen() {
                     {t('common.no_content')}
                   </Text>
                 ) : (
-                  lessons.map((l) => (
+                  lessons.map((l) => {
+                    const scorePct = lessonBestScorePercent(l.progress);
+                    const rowLabel =
+                      !l.locked && scorePct != null
+                        ? `${scorePct}%`
+                        : null;
+                    return (
                     <Pressable
                       key={l.id}
                       disabled={l.locked}
@@ -208,11 +230,22 @@ export default function HomeScreen() {
                         router.push(`/lesson/${l.id}`);
                       }}
                       style={[styles.lessonRow, l.locked && styles.lessonLocked]}
+                      accessibilityLabel={
+                        l.locked
+                          ? `${l.title_al}, ${t('lesson.locked')}`
+                          : rowLabel
+                            ? `${l.title_al}, ${rowLabel}`
+                            : `${l.title_al}, ${t('lesson.start')}`
+                      }
                     >
                       <View style={styles.lessonRowInner}>
                         <Text variant="bodyBold" style={styles.lessonTitle}>{l.title_al}</Text>
                         {l.locked ? (
                           <Text variant="caption">{t('lesson.locked')}</Text>
+                        ) : rowLabel != null ? (
+                          <Text variant="bodyBold" style={styles.scoreLabel}>
+                            {rowLabel}
+                          </Text>
                         ) : (
                           <Text variant="bodyBold" style={styles.startLabel}>
                             {t('lesson.start')} →
@@ -220,7 +253,8 @@ export default function HomeScreen() {
                         )}
                       </View>
                     </Pressable>
-                  ))
+                    );
+                  })
                 )}
               </ScrollView>
             )}
@@ -293,6 +327,7 @@ const styles = StyleSheet.create({
   },
   lessonTitle: { flex: 1 },
   startLabel: { color: colors.primary },
+  scoreLabel: { color: colors.primary, minWidth: 48, textAlign: 'right' },
   lessonLocked: { opacity: 0.4 },
   emptyLessons: { textAlign: 'center', paddingVertical: spacing.lg },
   close: { marginTop: spacing.lg, alignItems: 'center' },
