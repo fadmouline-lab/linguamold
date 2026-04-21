@@ -48,6 +48,12 @@ export function WordReorder({
   };
 
   const check = () => {
+    if (slots.length === 0) {
+      setCorrect(false);
+      setPhase('result');
+      onAnswer(false, []);
+      return;
+    }
     const ok = scoreWordReorder(content, orderIdx);
     setCorrect(ok);
     setPhase('result');

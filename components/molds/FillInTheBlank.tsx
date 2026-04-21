@@ -107,7 +107,12 @@ export function FillInTheBlank({
       <SuccessMessage
         visible={phase === 'result' && correct}
         message={t('lesson.correct')}
-        detail={content.success_message_al ?? content.sentence_ll ?? null}
+        detail={(() => {
+          const base = content.success_message_al ?? content.sentence_ll;
+          if (!base) return null;
+          const fill = selected !== null ? (content.options[selected]?.text ?? '') : '';
+          return base.replace('___', fill) || null;
+        })()}
       />
       <ErrorMessage
         visible={phase === 'result' && !correct}

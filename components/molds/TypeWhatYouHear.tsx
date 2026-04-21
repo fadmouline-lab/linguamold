@@ -32,6 +32,7 @@ export function TypeWhatYouHear({
   const [correct, setCorrect] = useState(false);
   const [close, setClose] = useState(false);
   const [bestMatch, setBestMatch] = useState<string | null>(null);
+  const [showHint, setShowHint] = useState(false);
 
   const check = () => {
     const trimmed = text.trim();
@@ -48,10 +49,10 @@ export function TypeWhatYouHear({
     <View style={styles.wrap}>
       <ExerciseHeader moldLabel={t('mold.type_hear_label')} />
       {phase === 'idle' && onHint ? (
-        <HintButton onHint={onHint} hintsUsed={hintsUsed ?? 0} />
+        <HintButton onHint={() => { onHint(); setShowHint(true); }} hintsUsed={hintsUsed ?? 0} />
       ) : null}
       <AudioPlayer audioUrl={content.audio_url_ll ?? null} autoPlay />
-      {content.hint_al ? <Text variant="caption">{content.hint_al}</Text> : null}
+      {showHint && content.hint_al ? <Text variant="caption">{content.hint_al}</Text> : null}
       <Input value={text} onChangeText={setText} editable={phase === 'idle'} />
       {phase === 'idle' ? (
         <Button title={t('exercise.check')} onPress={() => void check()} />
@@ -88,6 +89,7 @@ export function TypeWhatYouHear({
             setText('');
             setClose(false);
             setBestMatch(null);
+            setShowHint(false);
             onNext();
           }}
         />

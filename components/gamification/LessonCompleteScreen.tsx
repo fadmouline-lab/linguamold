@@ -141,6 +141,7 @@ export interface LessonCompleteScreenProps {
   scorePct: number;
   xpEarned: number;
   streakKept: boolean;
+  streakCount?: number;
   onContinue: () => void;
   wordsLearned?: WordSummary[];
   wordsToReview?: WordSummary[];
@@ -153,6 +154,7 @@ export function LessonCompleteScreen({
   scorePct,
   xpEarned,
   streakKept,
+  streakCount = 0,
   onContinue,
   wordsLearned,
   wordsToReview,
@@ -226,7 +228,7 @@ export function LessonCompleteScreen({
 
         <Text variant="caption" style={styles.scoreText}>
           {scorePct}% correct
-          {streakKept ? `  ·  🔥 ${t('gamify.streak')}` : ''}
+          {streakKept && streakCount > 0 ? `  ·  🔥 ${streakCount} ${t('gamify.streak')}` : streakKept ? `  ·  🔥 ${t('gamify.streak')}` : ''}
         </Text>
 
         {wordsLearned && wordsLearned.length > 0 && (

@@ -38,6 +38,7 @@ export default function HomeScreen() {
   const [selected, setSelected] = useState<ModuleWithProgress | null>(null);
   const { lessons, loading: lessonsLoading } = useLessons(selected?.id ?? null);
   const gems = useGamificationStore((s) => s.gems);
+  const hearts = useGamificationStore((s) => s.hearts);
   const setFromProfile = useGamificationStore((s) => s.setFromProfile);
   const isAdminMode = useAdminStore((s) => s.isAdminMode);
   const { checkIsAdmin } = useAdminMode();
@@ -159,9 +160,14 @@ export default function HomeScreen() {
         <Text variant="display" style={styles.brand}>
           LinguaMold
         </Text>
-        <Text variant="label" style={styles.gemBadge} accessibilityLabel={`${gems} gemmes`}>
-          💎 {gems}
-        </Text>
+        <View style={styles.rightBadges}>
+          <Text variant="label" style={styles.heartBadge} accessibilityLabel={`${hearts} vies`}>
+            ❤️ {hearts}
+          </Text>
+          <Text variant="label" style={styles.gemBadge} accessibilityLabel={`${gems} gemmes`}>
+            💎 {gems}
+          </Text>
+        </View>
       </View>
       {loading ? (
         <View style={{ gap: spacing.md }}>
@@ -237,9 +243,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
   },
   brand: { flex: 1, textAlign: 'center', letterSpacing: -0.5 },
+  rightBadges: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    alignItems: 'center',
+  },
+  heartBadge: {
+    color: colors.error,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.pill,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1.5,
+    borderColor: '#FECACA',
+    overflow: 'hidden',
+  },
   gemBadge: {
     color: colors.primary,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: radii.pill,
     backgroundColor: colors.primaryLight,

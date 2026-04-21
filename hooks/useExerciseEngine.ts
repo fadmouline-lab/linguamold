@@ -25,6 +25,7 @@ function generateId(): string {
 export function useExerciseEngine(placementMode = false) {
   const userId = useAuthStore((s) => s.user?.id);
   const strings = useUiStringStore((s) => s.strings);
+  const lessonStartedAtRef = useRef<string | null>(null);
   const tStatic = useCallback(
     (key: string, vars?: Record<string, string | number>): string => {
       const raw = strings[key] ?? APP_STRINGS_FALLBACK[key] ?? key;
@@ -55,6 +56,7 @@ export function useExerciseEngine(placementMode = false) {
       st.setLessonId(lessonId);
       st.setLoading(true);
       hintsUsedRef.current = new Map();
+      lessonStartedAtRef.current = new Date().toISOString();
       try {
         if (userId) {
           const { data: profile } = await supabase
@@ -136,6 +138,7 @@ export function useExerciseEngine(placementMode = false) {
 
         if (!placementMode && !isPractice) {
           const nextHearts = Math.max(0, h - 1);
+          st.setHearts(nextHearts);
           await supabase
             .from('user_profiles')
             .update({
@@ -143,7 +146,6 @@ export function useExerciseEngine(placementMode = false) {
               updated_at: new Date().toISOString(),
             })
             .eq('id', userId);
-          st.setHearts(nextHearts);
         }
       }
 
@@ -270,6 +272,17 @@ export function useExerciseEngine(placementMode = false) {
     const allCorrect = ans.every((a) => a.isCorrect);
     const xpBase = XP_LESSON_COMPLETE + (allCorrect ? XP_PERFECT_LESSON : 0);
 
+    const stars = sc < 60 ? 1 : sc < 90 ? 2 : 3;
+    const nowIso = new Date().toISOString();
+    const { data: existingLesson } = await supabase
+      .from('user_lesson_progress')
+      .select('started_at, attempts')
+      .eq('user_id', userId)
+      .eq('lesson_id', lessonId)
+      .maybeSingle();
+    const existingStartedAt = (existingLesson as { started_at: string | null; attempts: number } | null)?.started_at;
+    const existingAttempts = (existingLesson as { started_at: string | null; attempts: number } | null)?.attempts ?? 0;
+
     await supabase.from('user_lesson_progress').upsert(
       {
         user_id: userId,
@@ -277,7 +290,10 @@ export function useExerciseEngine(placementMode = false) {
         status: 'completed',
         score: sc,
         best_score: sc,
-        completed_at: new Date().toISOString(),
+        stars,
+        attempts: existingAttempts + 1,
+        started_at: existingStartedAt ?? lessonStartedAtRef.current ?? nowIso,
+        completed_at: nowIso,
       },
       { onConflict: 'user_id,lesson_id' }
     );

@@ -55,6 +55,11 @@ export function SelectCorrectVerb({
     onAnswer(ok, i);
   };
 
+  const displaySentence =
+    phase === 'result' && selected !== null
+      ? content.sentence_ll.replace('___', content.options[selected]?.text ?? '___')
+      : content.sentence_ll;
+
   return (
     <View style={styles.wrap}>
       <ExerciseHeader moldLabel="Verb" />
@@ -63,7 +68,7 @@ export function SelectCorrectVerb({
       ) : null}
       <EditableField
         isAdminMode={isAdminMode}
-        value={content.sentence_ll}
+        value={displaySentence}
         multiline
         onCommit={(v) => patch({ sentence_ll: v })}
       />

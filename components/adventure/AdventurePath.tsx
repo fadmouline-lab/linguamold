@@ -92,7 +92,7 @@ export function AdventurePath({
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.background },
   content: {
-    paddingTop: spacing.xl,
+    paddingTop: spacing.sm,
     paddingBottom: 120,
     paddingHorizontal: spacing.lg,
   },

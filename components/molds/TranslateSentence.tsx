@@ -59,7 +59,7 @@ export function TranslateSentence({
     <View style={styles.wrap}>
       <ExerciseHeader moldLabel={t('mold.translate_label')} />
       {phase === 'idle' && onHint ? (
-        <HintButton onHint={onHint} hintsUsed={hintsUsed ?? 0} />
+        <HintButton onHint={() => { onHint(); setShowHint(true); }} hintsUsed={hintsUsed ?? 0} />
       ) : null}
       <EditableField
         isAdminMode={isAdminMode}
@@ -79,11 +79,6 @@ export function TranslateSentence({
       ) : null}
       {phase === 'idle' ? (
         <View style={styles.row}>
-          <Button
-            title={t('exercise.hint')}
-            variant="secondary"
-            onPress={() => setShowHint(true)}
-          />
           <Button title={t('exercise.check')} onPress={() => void check()} />
         </View>
       ) : null}

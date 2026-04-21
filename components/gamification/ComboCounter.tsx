@@ -13,7 +13,6 @@ import Animated, {
 import { Text } from '@/components/ui/Text';
 import { colors, radii, spacing } from '@/components/ui/theme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { useUIString } from '@/hooks/useUIString';
 import { celebration } from '@/lib/haptics';
 import { SPRING, TIMING } from '@/lib/motion';
 
@@ -22,7 +21,6 @@ interface ComboCounterProps {
 }
 
 export function ComboCounter({ streak }: ComboCounterProps) {
-  const { t } = useUIString();
   const reduced = useReducedMotion();
 
   const entryScale = useSharedValue(0);
@@ -95,7 +93,7 @@ export function ComboCounter({ streak }: ComboCounterProps) {
 
   if (streak < 3) return null;
 
-  const comboLabel = getComboLabel(streak, t);
+  const comboLabel = getComboLabel(streak);
 
   return (
     <>
@@ -119,14 +117,9 @@ export function ComboCounter({ streak }: ComboCounterProps) {
   );
 }
 
-function getComboLabel(
-  streak: number,
-  t: (key: string, vars?: Record<string, string | number>) => string,
-): string | null {
-  if (streak >= 10) return t('gamify.combo_10');
-  if (streak >= 5)  return t('gamify.combo_5');
-  if (streak >= 3)  return t('gamify.combo_3');
-  return null;
+function getComboLabel(streak: number): string | null {
+  if (streak < 3) return null;
+  return `${streak} in a row!`;
 }
 
 const styles = StyleSheet.create({

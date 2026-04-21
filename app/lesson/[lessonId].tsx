@@ -28,12 +28,44 @@ import { getMoldComponent } from '@/lib/mold-registry';
 import { toMoldExercise } from '@/lib/exercise-mapper';
 import { playSound, preloadSounds, unloadSounds } from '@/lib/sounds';
 import { useLessonStore } from '@/stores/lessonStore';
+import { useGamificationStore } from '@/stores/gamificationStore';
+import type { WordSummary } from '@/components/gamification/LessonCompleteScreen';
+import type { ExerciseRow } from '@/types/index';
 import {
   XP_CORRECT_ANSWER,
   XP_COMBO_BONUS,
   XP_LESSON_COMPLETE,
   XP_PERFECT_LESSON,
 } from '@/lib/constants';
+
+function extractWordSummary(ex: ExerciseRow): WordSummary | null {
+  const c = ex.content as Record<string, unknown>;
+  switch (ex.mold_type) {
+    case 'flashcard':
+      return {
+        word: String(c.word_ll ?? c.prompt_ll ?? ''),
+        translation: String(c.translation_al ?? ''),
+      };
+    case 'fill_in_the_blank': {
+      const opts = c.options as Array<{ text: string; is_correct: boolean }> | undefined;
+      const correct = opts?.find((o) => o.is_correct)?.text ?? '';
+      const sentence = String(c.sentence_al ?? '').replace('___', correct);
+      return correct ? { word: correct, translation: sentence } : null;
+    }
+    case 'translate_sentence':
+      return {
+        word: String(c.prompt_al ?? ''),
+        translation: (c.accepted_answers_ll as string[] | undefined)?.[0] ?? '',
+      };
+    case 'select_correct_verb': {
+      const opts = c.options as Array<{ text: string; is_correct: boolean }> | undefined;
+      const correct = opts?.find((o) => o.is_correct)?.text ?? '';
+      return correct ? { word: correct, translation: String(c.sentence_ll ?? '') } : null;
+    }
+    default:
+      return null;
+  }
+}
 
 export default function LessonScreen() {
   const { lessonId, placement } = useLocalSearchParams<{
@@ -221,12 +253,35 @@ export default function LessonScreen() {
 
   if (isComplete) {
     const xp = XP_LESSON_COMPLETE + (isPerfect() ? XP_PERFECT_LESSON : 0);
+    const currentStreak = useGamificationStore.getState().currentStreak;
+    const allAnswers = useLessonStore.getState().answers;
+    const allExercises = useLessonStore.getState().exercises;
+
+    const lastCorrectByExercise = new Map<string, boolean>();
+    allAnswers.forEach((a) => {
+      if (!a.isSkipped) lastCorrectByExercise.set(a.exerciseId, a.isCorrect);
+    });
+
+    const wordsLearned: WordSummary[] = [];
+    const wordsToReview: WordSummary[] = [];
+    lastCorrectByExercise.forEach((isCorrect, exerciseId) => {
+      const ex = allExercises.find((e) => e.id === exerciseId);
+      if (!ex) return;
+      const summary = extractWordSummary(ex);
+      if (!summary || (!summary.word && !summary.translation)) return;
+      if (isCorrect) wordsLearned.push(summary);
+      else wordsToReview.push(summary);
+    });
+
     return (
       <LessonCompleteScreen
         scorePct={getScore()}
         xpEarned={xp}
-        streakKept
+        streakKept={currentStreak > 0}
+        streakCount={currentStreak}
         onContinue={leaveLesson}
+        wordsLearned={wordsLearned}
+        wordsToReview={wordsToReview}
       />
     );
   }
