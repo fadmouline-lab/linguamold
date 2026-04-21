@@ -37,6 +37,8 @@ export const APP_STRINGS_FR_PRIORITY: Record<string, string> = {
   'nav.leaderboard': 'Classement',
   'nav.profile': 'Profil',
   'nav.browse': 'Parcourir',
+  'browse.filter_all': 'Tous',
+  'browse.filter_level': 'Nv {{n}}',
   'nav.shop': 'Boutique',
   'nav.admin': 'Admin',
   'nav.back': 'Retour',
@@ -80,4 +82,7 @@ export const APP_STRINGS_FR_PRIORITY: Record<string, string> = {
   'lesson.start': 'Commencer',
   'exercise.check': 'Vérifier',
   'exercise.hint': 'Indice',
+
+  'gamify.level': 'Niveau',
+  'gamify.level_with_number': 'Niveau {{level}}',
 };

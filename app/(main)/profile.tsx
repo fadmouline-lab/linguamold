@@ -70,7 +70,9 @@ export default function ProfileScreen() {
             <Text style={styles.avatarText}>{initial}</Text>
           </View>
           <Text variant="h2" style={styles.displayName}>{name || t('nav.profile')}</Text>
-          <Text variant="caption" style={styles.levelBadge}>Level {getLevel()}</Text>
+          <Text variant="caption" style={styles.levelBadge}>
+            {t('gamify.level_with_number', { level: getLevel() })}
+          </Text>
         </View>
 
         <View style={styles.statGrid}>
@@ -87,7 +89,7 @@ export default function ProfileScreen() {
           <View style={styles.stat}>
             <Text style={styles.statIcon}>📚</Text>
             <Text variant="h2" style={styles.statValue}>{getLevel()}</Text>
-            <Text variant="caption" style={styles.statLabel}>{t('nav.profile')}</Text>
+            <Text variant="caption" style={styles.statLabel}>{t('gamify.level')}</Text>
           </View>
           <View style={styles.stat}>
             <Text style={styles.statIcon}>🎯</Text>

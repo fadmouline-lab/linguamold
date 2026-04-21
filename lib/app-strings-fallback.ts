@@ -136,6 +136,8 @@ export const APP_STRINGS_FALLBACK: Record<string, string> = {
 
   // Gamification
   'gamify.xp': 'XP',
+  'gamify.level': 'Level',
+  'gamify.level_with_number': 'Level {{level}}',
   'gamify.streak': 'Streak',
   'gamify.gems': 'Gems',
   'gamify.leaderboard_weekly': 'Weekly leaderboard',
@@ -244,6 +246,8 @@ export const APP_STRINGS_FALLBACK: Record<string, string> = {
   'offline.syncing': 'Syncing…',
   'offline.synced': 'All synced!',
   'browse.search': 'Search modules…',
+  'browse.filter_all': 'All',
+  'browse.filter_level': 'Lv {{n}}',
 
   // UX Feedback Layer — Phase 1: Core Lesson Feedback
   'lesson.wrong_detail_format': 'The correct answer is "{{answer}}".',

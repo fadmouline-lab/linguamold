@@ -1,4 +1,4 @@
--- Optional: run in Supabase SQL editor after applying migrations 001–024.
+-- Optional: run in Supabase SQL editor after applying migrations 001–025.
 -- Confirms columns the React client writes to exist.
 
 SELECT column_name, data_type

@@ -76,7 +76,9 @@ export default function BrowseScreen() {
             onPress={() => setDiff(d)}
             style={[styles.filterChip, diff === d && styles.filterOn]}
           >
-            <Text variant="caption">{d === null ? 'All' : `Lv ${d}`}</Text>
+            <Text variant="caption">
+              {d === null ? t('browse.filter_all') : t('browse.filter_level', { n: d })}
+            </Text>
           </Pressable>
         ))}
       </View>

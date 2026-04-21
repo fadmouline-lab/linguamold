@@ -45,6 +45,23 @@ function lessonBestScorePercent(
   return Math.round(Math.min(100, Math.max(0, n)));
 }
 
+function utcTodayRange(): { start: string; end: string } {
+  const day = new Date().toISOString().slice(0, 10);
+  const start = `${day}T00:00:00.000Z`;
+  const endDate = new Date(start);
+  endDate.setUTCDate(endDate.getUTCDate() + 1);
+  return { start, end: endDate.toISOString() };
+}
+
+async function fetchTrackedWordsCount(userId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('user_word_difficulty')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId);
+  if (error) return 0;
+  return count ?? 0;
+}
+
 export default function HomeScreen() {
   const { t } = useUIString();
   const { modules, loading, error, reload } = useModules();
@@ -64,28 +81,56 @@ export default function HomeScreen() {
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [showStreakBreak, setShowStreakBreak] = useState(false);
   const [welcomeBackDay, setWelcomeBackDay] = useState(2);
+  const [welcomeBackWords, setWelcomeBackWords] = useState(0);
+  const [streakBreakWords, setStreakBreakWords] = useState(0);
   const [previousStreak, setPreviousStreak] = useState(0);
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState(10);
   const [dailyGoalCurrent, setDailyGoalCurrent] = useState(0);
 
   const refreshProfile = useCallback(async () => {
     if (!userId) return;
-    const { data } = await supabase
-      .from('user_profiles')
-      .select(
-        'total_xp, current_streak, longest_streak, gems, hearts, hearts_last_regen'
-      )
-      .eq('id', userId)
-      .maybeSingle();
-    const row = data as {
+    const { start, end } = utcTodayRange();
+    const [profileRes, attemptsRes] = await Promise.all([
+      supabase
+        .from('user_profiles')
+        .select(
+          'total_xp, current_streak, longest_streak, gems, hearts, hearts_last_regen, daily_goal_minutes'
+        )
+        .eq('id', userId)
+        .maybeSingle(),
+      supabase
+        .from('user_exercise_attempts')
+        .select('time_spent_ms')
+        .eq('user_id', userId)
+        .gte('attempted_at', start)
+        .lt('attempted_at', end),
+    ]);
+    const row = profileRes.data as {
       total_xp: number;
       current_streak: number;
       longest_streak: number;
       gems: number;
       hearts: number;
       hearts_last_regen: string;
+      daily_goal_minutes: number | null;
     } | null;
-    if (row) setFromProfile(row);
+    if (row) {
+      setFromProfile({
+        total_xp: row.total_xp,
+        current_streak: row.current_streak,
+        longest_streak: row.longest_streak,
+        gems: row.gems,
+        hearts: row.hearts,
+        hearts_last_regen: row.hearts_last_regen,
+      });
+      const goal = Number(row.daily_goal_minutes) || 10;
+      setDailyGoalMinutes(goal);
+      const ms = (attemptsRes.data ?? []).reduce(
+        (s, r) => s + (Number((r as { time_spent_ms: number | null }).time_spent_ms) || 0),
+        0
+      );
+      setDailyGoalCurrent(Math.min(goal, Math.ceil(ms / 60000)));
+    }
   }, [setFromProfile, userId]);
 
   useEffect(() => {
@@ -106,11 +151,13 @@ export default function HomeScreen() {
 
       if (streakBeforeCheck.current != null && streakBeforeCheck.current > 0 && after === 0) {
         setPreviousStreak(streakBeforeCheck.current);
+        setStreakBreakWords(await fetchTrackedWordsCount(userId));
         setShowStreakBreak(true);
       } else if (after > 0 && after <= 5) {
         const wbKey = `linguamold.welcome_back_${today}`;
         const wbShown = await AsyncStorage.getItem(wbKey);
         if (!wbShown && [2, 3, 5].includes(after)) {
+          setWelcomeBackWords(await fetchTrackedWordsCount(userId));
           setWelcomeBackDay(after);
           setShowWelcomeBack(true);
           await AsyncStorage.setItem(wbKey, '1');
@@ -120,10 +167,6 @@ export default function HomeScreen() {
       } else if (after > 0) {
         pushToast(t('gamify.streak_celebration'), '🔥');
       }
-
-      // Load daily goal progress
-      const goalStr = await AsyncStorage.getItem('linguamold.daily_goal_minutes');
-      if (goalStr) setDailyGoalMinutes(Number(goalStr) || 10);
 
       await AsyncStorage.setItem(key, '1');
     };
@@ -146,7 +189,7 @@ export default function HomeScreen() {
     return (
       <WelcomeBackScreen
         dayCount={welcomeBackDay}
-        wordsLearned={0}
+        wordsLearned={welcomeBackWords}
         onContinue={() => setShowWelcomeBack(false)}
         onDismiss={() => setShowWelcomeBack(false)}
       />
@@ -157,7 +200,7 @@ export default function HomeScreen() {
     return (
       <StreakBreakScreen
         previousStreak={previousStreak}
-        totalWordsLearned={0}
+        totalWordsLearned={streakBreakWords}
         onStartFresh={() => setShowStreakBreak(false)}
         onVisitShop={() => {
           setShowStreakBreak(false);

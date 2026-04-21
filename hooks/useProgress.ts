@@ -68,16 +68,16 @@ export function useProgress() {
         .eq('user_id', userId)
         .eq('status', 'completed');
 
-      // Fetch total minutes practiced
-      const { data: streakData } = await supabase
-        .from('user_streaks')
-        .select('exercises_completed')
+      // Lifetime practice time from logged attempts (ms → minutes)
+      const { data: timeRows } = await supabase
+        .from('user_exercise_attempts')
+        .select('time_spent_ms')
         .eq('user_id', userId);
-      // Approximate: each exercise ~30 seconds average
-      const totalExercises = (streakData ?? []).reduce(
-        (sum: number, r: any) => sum + (r.exercises_completed ?? 0), 0
+      const totalMs = (timeRows ?? []).reduce(
+        (sum, r) => sum + (Number((r as { time_spent_ms: number | null }).time_spent_ms) || 0),
+        0
       );
-      const minutesPracticed = Math.round(totalExercises * 0.5);
+      const minutesPracticed = Math.round(totalMs / 60000);
 
       setData({
         totalWords: totalWords ?? 0,
