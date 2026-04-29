@@ -1,12 +1,14 @@
 # LinguaMold
 
 A gamified language learning app built with React Native and Expo. 
-Inspired by Duolingo, designed for adult casual learners who want 
-short daily lessons without the corporate polish.
 
 Built as a passion project and proof of concept for a bigger idea: 
 language learning apps built natively for underserved language speakers, 
 not as an English-first afterthought.
+
+Learning English --> Spanish is overdone. 
+English --> "Obscure" languages as well. 
+What about "Obscure" languages --> English/Spanish/Mandarin/etc.
 
 ## What is built
 
